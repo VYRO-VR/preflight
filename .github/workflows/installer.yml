@@ -1,0 +1,31 @@
+name: Build Windows Installer (artifact)
+
+# Builds the Windows installer and uploads it as a downloadable workflow
+# artifact. This does NOT publish a GitHub Release — use the Release workflow
+# (tag push) for that. Runs on demand, or on pushes to working branches.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'claude/**'
+
+jobs:
+  build-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Build the NSIS installer + portable exe without publishing anywhere.
+      - run: npx electron-builder --win --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vyro-vr-configurator-windows
+          path: |
+            release/*.exe
+          if-no-files-found: error
+          retention-days: 30
