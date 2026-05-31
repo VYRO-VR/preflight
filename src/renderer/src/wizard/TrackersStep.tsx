@@ -57,7 +57,9 @@ export function TrackersStep() {
 
       {live.connected && live.trackers.length === 0 && (
         <p className="text-sm text-slate-500">
-          Connected to SlimeVR Server, but no trackers yet. Press each tracker once to power it on.
+          Connected to SlimeVR Server. If your trackers are powered on they will be listed in the
+          SlimeVR Server window — per-tracker battery and signal readouts will appear here once the
+          live data feed lands in an upcoming build. Press each tracker once to power it on.
         </p>
       )}
     </StepShell>

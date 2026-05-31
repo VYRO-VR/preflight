@@ -41,11 +41,6 @@ export function SystemStep() {
         status={loading ? running : (info?.totalMemoryGb ?? 0) >= SUPPORTED.minMemoryGb ? 'pass' : 'warn'}
         value={info ? `${info.totalMemoryGb} GB` : undefined}
       />
-      <CheckRow
-        label={t('step.system.admin')}
-        status={loading ? running : info?.isAdmin ? 'pass' : 'warn'}
-        detail={info?.isAdmin ? undefined : 'Some driver checks may need elevation.'}
-      />
       <div className="pt-2">
         <Button variant="secondary" onClick={load} disabled={loading}>
           {t('nav.recheck')}

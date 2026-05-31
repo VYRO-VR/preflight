@@ -14,7 +14,7 @@ export interface CheckResult {
 // Products
 // ---------------------------------------------------------------------------
 
-export type ProductId = 'ibis-core' | 'ibis-advanced' | 'ibis-full-body'
+export type ProductId = 'core' | 'advanced' | 'full-body'
 
 export interface ProductDef {
   id: ProductId

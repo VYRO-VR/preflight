@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { BUTTON_ACTIONS, LINKS } from '@shared/config'
+import { DFU_PRESSES, LINKS } from '@shared/config'
 import type { FirmwareCatalog, BootloaderDrive, FlashResult } from '@shared/types'
 import { useAppStore } from '../store/useAppStore'
 import { StepShell } from '../components/StepShell'
 import { Button } from '../components/Button'
 
-const dfuPresses = BUTTON_ACTIONS.find((b) => /dfu/i.test(b.action))?.presses ?? 5
+const dfuPresses = DFU_PRESSES
 
 export function FirmwareStep() {
   const t = useAppStore((s) => s.t)

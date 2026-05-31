@@ -9,31 +9,38 @@ export const APP_NAME = 'VYRO VR Configurator'
 
 export const PRODUCTS: ProductDef[] = [
   {
-    id: 'ibis-core',
-    name: 'IBIS Core',
+    id: 'core',
+    name: 'Core',
     trackerCount: 6,
-    description: 'Lower-body tracking — waist, chest/hip, thighs, and feet.'
+    description: 'Chest, hip, thighs, and ankles.'
   },
   {
-    id: 'ibis-advanced',
-    name: 'IBIS Advanced',
+    id: 'advanced',
+    name: 'Advanced',
     trackerCount: 8,
-    description: 'Lower-body plus elbows for improved upper-body fidelity.'
+    description: 'Adds foot rotation.'
   },
   {
-    id: 'ibis-full-body',
-    name: 'IBIS Full Body',
+    id: 'full-body',
+    name: 'Full Body',
     trackerCount: 10,
-    description: 'Full coverage including arms and chest.'
+    description: 'Adds foot rotation and arm tracking.'
   }
 ]
 
-// USB receiver dongle identity. nRF52840-class dongles commonly enumerate
-// under Nordic / Adafruit IDs. TODO: confirm exact VID/PID of the shipping
-// VYRO receiver and add every variant here.
+// USB receiver dongle identities (best-effort). SlimeVR-compatible receivers
+// ship on many different nRF52840 boards (foxDongle, Nordic dongle, SuperMini,
+// etc.) and each enumerates under different IDs — so auto-detection here is a
+// convenience only. The authoritative signal that the receiver works is
+// whether your trackers appear in SlimeVR Server (see the Trackers step).
+// Add IDs as they are confirmed against real hardware.
 export const RECEIVER_USB_IDS: { vendorId: string; productId: string; label: string }[] = [
   { vendorId: '1915', productId: '520F', label: 'Nordic Semiconductor nRF52840 Dongle' },
-  { vendorId: '239A', productId: '0029', label: 'Adafruit nRF52840 (UF2)' }
+  { vendorId: '1915', productId: '521F', label: 'Nordic nRF52840 (CDC)' },
+  { vendorId: '2FE3', productId: '000C', label: 'nRF52840 USB Serial' },
+  { vendorId: '239A', productId: '0029', label: 'Adafruit nRF52840 (UF2)' },
+  { vendorId: '10C4', productId: 'EA60', label: 'Silicon Labs CP210x (UART receiver)' },
+  { vendorId: '1A86', productId: '7523', label: 'CH340 (UART receiver)' }
 ]
 
 // Mass-storage volume labels exposed by a tracker in UF2/DFU bootloader mode.
@@ -42,37 +49,53 @@ export const BOOTLOADER_VOLUME_LABELS = ['NICENANO', 'SLIMEVRTRK']
 // SlimeVR Server SolarXR WebSocket feed (same endpoint the SlimeVR GUI uses).
 export const SLIMEVR_WS_URL = 'ws://127.0.0.1:21110'
 
-// Firmware source. TODO: github.com/vyro-vr/firmware does not exist yet —
-// the firmware step degrades gracefully until releases are published here.
-export const FIRMWARE_REPO = { owner: 'vyro-vr', repo: 'firmware' }
+// Firmware source — VYRO's smol-slime firmware fork. The firmware step reads
+// GitHub Releases here; it degrades gracefully if there are no releases yet.
+export const FIRMWARE_REPO = { owner: 'VYRO-VR', repo: 'jitingcn-smol-slime-firmware' }
 export const FIRMWARE_RELEASES_API = `https://api.github.com/repos/${FIRMWARE_REPO.owner}/${FIRMWARE_REPO.repo}/releases`
 
 // A release is treated as "recommended" when its notes contain this marker,
 // otherwise the latest non-prerelease release is used.
 export const FIRMWARE_RECOMMENDED_MARKER = '[recommended]'
 
-// Tracker button-press reference. TODO: verify against final docs — sources
-// disagree on the exact mapping.
-export const BUTTON_ACTIONS: { presses: number; action: string; detail: string }[] = [
-  { presses: 1, action: 'Reset', detail: 'Full reset — use while standing in I-pose.' },
+// Tracker button reference (smol-slime firmware).
+// Source: https://docs.slimevr.dev/smol-slimes/firmware/smol-firmware-serial-and-button-commands.html
+export const BUTTON_ACTIONS: { input: string; action: string; detail: string }[] = [
+  { input: '1 press', action: 'Reset', detail: 'Resets tracking. Use while standing in an I-pose.' },
   {
-    presses: 2,
-    action: 'Side calibration',
-    detail: 'Lay the tracker on a flat surface and wait for the light to flash.'
+    input: '2 presses',
+    action: 'Calibration',
+    detail: 'Lay the tracker flat and still until the LED flashes to confirm.'
   },
-  { presses: 3, action: 'Pairing mode', detail: 'Pair an additional tracker to the receiver.' },
-  {
-    presses: 5,
-    action: 'DFU / firmware mode',
-    detail: 'Exposes the NICENANO / SLIMEVRTRK drive for flashing a .uf2 file.'
-  }
+  { input: 'Hold 1s', action: 'Deep sleep', detail: 'Powers the tracker down to save battery.' },
+  { input: 'Hold 5s', action: 'Pairing', detail: 'Pairs the tracker to the receiver.' }
+]
+
+// Number of presses to enter DFU / bootloader mode (used by the Firmware step).
+export const DFU_PRESSES = 4
+
+// Tracker LED reference (smol-slime). The firmware signals state through blink
+// patterns; exact colors vary by hardware revision.
+// Source: https://docs.slimevr.dev/smol-slimes/smol-LED-codes.html
+export const LED_CODES: { pattern: string; meaning: string }[] = [
+  { pattern: 'Very short blink', meaning: 'Normal operation (or waking on motion).' },
+  { pattern: '1 long blink per second', meaning: 'Low battery.' },
+  { pattern: 'Off', meaning: 'Deep sleep, or the battery is depleted.' },
+  { pattern: 'Pulsing (while charging)', meaning: 'Charging.' },
+  { pattern: 'Off (while plugged in)', meaning: 'Fully charged.' },
+  { pattern: '1 short blink per second', meaning: 'Pairing mode active.' },
+  { pattern: 'Fading on and off', meaning: 'DFU / firmware-flash mode.' },
+  { pattern: '2 long blinks every 5s', meaning: 'Sensor malfunction.' },
+  { pattern: '3 long blinks every 5s', meaning: 'Connection failure.' },
+  { pattern: '4 long blinks every 5s', meaning: 'Hardware malfunction.' }
 ]
 
 export const LINKS = {
   store: 'https://vyrovr.com',
   docs: 'https://docs.vyrovr.com',
   setupGuide: 'https://vyrovr.com/setup',
-  firmwareRepo: 'https://github.com/vyro-vr/firmware',
+  firmwareRepo: 'https://github.com/VYRO-VR/jitingcn-smol-slime-firmware',
+  smolDocs: 'https://docs.slimevr.dev/smol-slimes',
   slimevrDownload: 'https://slimevr.dev',
   slimevrDocs: 'https://docs.slimevr.dev',
   steamvr: 'steam://run/250820',

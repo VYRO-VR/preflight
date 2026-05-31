@@ -21,6 +21,11 @@ export const pt: Record<string, string> = {
 
   'step.system.title': 'Requisitos do Sistema',
   'step.software.title': 'Software Necessário',
+  'step.software.running': 'Em execução',
+  'step.software.notrunning': 'Não encontrado ou não está em execução',
+  'step.software.slimevr.hint':
+    'Instale e abra o SlimeVR Server (Steam ou standalone) antes de continuar.',
+  'step.software.getslimevr': 'Obter SlimeVR',
   'step.receiver.title': 'Conecte o Receptor',
   'step.trackers.title': 'Ligue os Rastreadores',
   'step.mounting.title': 'Montagem e Atribuição',

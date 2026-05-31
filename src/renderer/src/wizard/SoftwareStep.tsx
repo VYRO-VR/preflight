@@ -8,6 +8,9 @@ import { Button } from '../components/Button'
 
 export function SoftwareStep() {
   const t = useAppStore((s) => s.t)
+  // SlimeVR "running" is detected by a live connection to its server, which
+  // works for both the Steam and standalone builds regardless of install path.
+  const live = useAppStore((s) => s.liveState)
   const [steamvr, setSteamvr] = useState<SteamVrInfo | null>(null)
   const [slimevr, setSlimevr] = useState<SlimeVrInstall | null>(null)
   const [loading, setLoading] = useState(true)
@@ -25,6 +28,8 @@ export function SoftwareStep() {
 
   useEffect(() => {
     load()
+    // Keep retrying the SlimeVR connection while the user launches it.
+    window.api.slimevr.connect()
   }, [])
 
   const open = (url: string) => window.api.docs.openExternal(url)
@@ -33,7 +38,7 @@ export function SoftwareStep() {
     <StepShell title={t('step.software.title')}>
       <CheckRow
         label={t('step.software.steamvr')}
-        status={loading ? 'running' : steamvr?.installed ? 'pass' : 'fail'}
+        status={loading ? 'running' : steamvr?.installed ? 'pass' : 'warn'}
         value={steamvr?.installed ? t('step.software.installed') : t('step.software.missing')}
         detail={steamvr?.installPath}
         action={
@@ -46,17 +51,23 @@ export function SoftwareStep() {
       />
       <CheckRow
         label={t('step.software.slimevr')}
-        status={loading ? 'running' : slimevr?.installed ? 'pass' : 'fail'}
+        status={live.connected ? 'pass' : 'fail'}
         value={
-          slimevr?.installed
-            ? `${t('step.software.installed')}${slimevr.version ? ` · ${slimevr.version}` : ''}`
-            : t('step.software.missing')
+          live.connected
+            ? `${t('step.software.running')}${
+                live.serverVersion ? ` · ${live.serverVersion}` : ''
+              }`
+            : t('step.software.notrunning')
         }
-        detail={slimevr?.installPath}
+        detail={
+          live.connected
+            ? slimevr?.installPath
+            : t('step.software.slimevr.hint')
+        }
         action={
-          !loading && !slimevr?.installed ? (
+          !live.connected ? (
             <Button variant="secondary" onClick={() => open(LINKS.slimevrDownload)}>
-              {t('step.software.install')}
+              {t('step.software.getslimevr')}
             </Button>
           ) : undefined
         }

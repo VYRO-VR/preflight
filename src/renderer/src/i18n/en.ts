@@ -28,14 +28,23 @@ export const en = {
   'step.software.steamvr': 'SteamVR',
   'step.software.slimevr': 'SlimeVR Server',
   'step.software.install': 'Install',
+  'step.software.getslimevr': 'Get SlimeVR',
   'step.software.installed': 'Installed',
   'step.software.missing': 'Not found',
+  'step.software.running': 'Running',
+  'step.software.notrunning': 'Not found or not running',
+  'step.software.slimevr.hint':
+    'Install and launch SlimeVR Server (Steam or standalone) before continuing.',
 
   'step.receiver.title': 'Connect the Receiver',
-  'step.receiver.body':
-    'Plug the receiver into the USB extension cable and place it above your play space.',
-  'step.receiver.detected': 'Receiver detected',
-  'step.receiver.missing': 'Receiver not detected',
+  'step.receiver.body': 'Connect the receiver and place it above your play space.',
+  'step.receiver.cable.title': 'Use the USB extension cable.',
+  'step.receiver.cable.body':
+    'Always plug the receiver into the included extension cable, then into your PC — never directly into the case. This is required for reliable tracking.',
+  'step.receiver.detected': 'Receiver',
+  'step.receiver.notdetected': "Couldn't auto-detect a receiver",
+  'step.receiver.notdetected.hint':
+    "Receivers vary (foxDongle, Nordic dongle, and others), so we can't always recognise yours. If your trackers show up in SlimeVR Server, your receiver is working fine — continue to the next step.",
 
   'step.trackers.title': 'Power On Your Trackers',
   'step.trackers.body': 'Press each tracker once to turn it on. They should appear below.',
@@ -45,6 +54,8 @@ export const en = {
   'step.mounting.title': 'Mounting & Assignment',
   'step.calibration.title': 'Calibration',
   'step.calibration.buttons': 'Button reference',
+  'step.calibration.led': 'LED reference',
+  'step.calibration.docs': 'Open smol-slime docs',
 
   'step.firmware.title': 'Firmware',
   'step.firmware.recommended': 'Recommended version',
