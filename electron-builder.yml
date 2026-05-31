@@ -1,0 +1,35 @@
+appId: com.vyrovr.configurator
+productName: VYRO VR Configurator
+copyright: Copyright © 2026 VYRO VR
+directories:
+  buildResources: build
+  output: release
+files:
+  - out/**/*
+  - resources/**/*
+  - package.json
+extraResources:
+  - from: resources/docs-cache
+    to: docs-cache
+    filter: ['**/*']
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.ico
+  # Code-signing: set CSC_LINK + CSC_KEY_PASSWORD in CI to enable.
+  # Unsigned builds work but trigger Windows SmartScreen warnings.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: VYRO VR Configurator
+publish:
+  provider: github
+  owner: vyro-vr
+  repo: vyro-vr-configurator
+  releaseType: draft
