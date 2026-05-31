@@ -72,4 +72,4 @@ Code signing is optional but recommended (avoids Windows SmartScreen warnings). 
 - Publish `github.com/vyro-vr/firmware` releases (the firmware step degrades gracefully
   until then).
 - Verify the **button-press mapping** against final docs.
-- Add `build/icon.ico` and a real Discord invite.
+- Add `build/icon.ico`.

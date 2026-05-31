@@ -17,7 +17,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run build:win
+      - run: npm run build
+      - run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Code signing (optional): provide a cert to avoid SmartScreen warnings.

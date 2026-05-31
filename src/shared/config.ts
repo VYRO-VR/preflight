@@ -76,7 +76,6 @@ export const LINKS = {
   slimevrDownload: 'https://slimevr.dev',
   slimevrDocs: 'https://docs.slimevr.dev',
   steamvr: 'steam://run/250820',
-  // TODO: replace with the real VYRO VR Discord invite.
   discord: 'https://discord.gg/vyrovr'
 }
 
