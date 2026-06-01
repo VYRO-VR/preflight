@@ -9,6 +9,8 @@ interface AppState {
   liveState: SlimeVrLiveState
   updateStatus: string | null
   appVersion: string
+  /** User confirmed the receiver is plugged into the extension cable. */
+  cableAcknowledged: boolean
 
   t: (key: TranslationKey, vars?: Record<string, string | number>) => string
 
@@ -17,6 +19,7 @@ interface AppState {
   selectProduct: (id: ProductId) => void
   setLiveState: (state: SlimeVrLiveState) => void
   setUpdateStatus: (status: string) => void
+  setCableAcknowledged: (value: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -26,6 +29,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   liveState: { connected: false, trackers: [] },
   updateStatus: null,
   appVersion: '',
+  cableAcknowledged: false,
 
   t: createTranslator('en'),
 
@@ -60,5 +64,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setLiveState: (liveState) => set({ liveState }),
-  setUpdateStatus: (updateStatus) => set({ updateStatus })
+  setUpdateStatus: (updateStatus) => set({ updateStatus }),
+  setCableAcknowledged: (cableAcknowledged) => set({ cableAcknowledged })
 }))

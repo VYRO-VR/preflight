@@ -27,6 +27,9 @@ export const pt: Record<string, string> = {
     'Instale e abra o SlimeVR Server (Steam ou standalone) antes de continuar.',
   'step.software.getslimevr': 'Obter SlimeVR',
   'step.receiver.title': 'Conecte o Receptor',
+  'step.receiver.cable.title': 'Conectei o receptor ao cabo de extensão.',
+  'step.receiver.cable.body':
+    'Conecte o receptor ao cabo de extensão incluído e depois ao PC — nunca diretamente. Isso é necessário para um rastreamento confiável e para continuar.',
   'step.trackers.title': 'Ligue os Rastreadores',
   'step.mounting.title': 'Montagem e Atribuição',
   'step.calibration.title': 'Calibração',

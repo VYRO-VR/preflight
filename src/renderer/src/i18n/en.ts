@@ -38,9 +38,9 @@ export const en = {
 
   'step.receiver.title': 'Connect the Receiver',
   'step.receiver.body': 'Connect the receiver and place it above your play space.',
-  'step.receiver.cable.title': 'Use the USB extension cable.',
+  'step.receiver.cable.title': "I've plugged the receiver into the extension cable.",
   'step.receiver.cable.body':
-    'Always plug the receiver into the included extension cable, then into your PC — never directly into the case. This is required for reliable tracking.',
+    'Connect the receiver to the included extension cable, then into your PC — never directly into the case. This is required for reliable tracking, and to continue.',
   'step.receiver.detected': 'Receiver',
   'step.receiver.notdetected': "Couldn't auto-detect a receiver",
   'step.receiver.notdetected.hint':
