@@ -38,16 +38,18 @@ export async function detectReceiver(): Promise<UsbDeviceMatch> {
 
   for (const id of RECEIVER_USB_IDS) {
     const needle = `VID_${id.vendorId.toUpperCase()}&PID_${id.productId.toUpperCase()}`
-    const hit = devices.find((d) => d.InstanceId?.toUpperCase().includes(needle))
-    if (hit) {
-      const comPort = extractComPort(hit.FriendlyName)
-      return {
-        detected: true,
-        description: hit.FriendlyName || id.label,
-        vendorId: id.vendorId,
-        productId: id.productId,
-        comPort
-      }
+    // A composite receiver shows up as several PnP entries (e.g. a serial CDC
+    // interface plus an HID interface). Prefer the one exposing a COM port.
+    const matches = devices.filter((d) => d.InstanceId?.toUpperCase().includes(needle))
+    if (matches.length === 0) continue
+    const withCom = matches.find((d) => extractComPort(d.FriendlyName))
+    const hit = withCom ?? matches[0]
+    return {
+      detected: true,
+      description: hit.FriendlyName || id.label,
+      vendorId: id.vendorId,
+      productId: id.productId,
+      comPort: extractComPort(hit.FriendlyName)
     }
   }
 

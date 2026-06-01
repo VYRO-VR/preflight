@@ -35,6 +35,7 @@ export const PRODUCTS: ProductDef[] = [
 // whether your trackers appear in SlimeVR Server (see the Trackers step).
 // Add IDs as they are confirmed against real hardware.
 export const RECEIVER_USB_IDS: { vendorId: string; productId: string; label: string }[] = [
+  { vendorId: '1209', productId: '7690', label: 'foxDongle / SlimeVR nRF receiver' },
   { vendorId: '1915', productId: '520F', label: 'Nordic Semiconductor nRF52840 Dongle' },
   { vendorId: '1915', productId: '521F', label: 'Nordic nRF52840 (CDC)' },
   { vendorId: '2FE3', productId: '000C', label: 'nRF52840 USB Serial' },
