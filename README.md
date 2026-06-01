@@ -64,12 +64,19 @@ npm run build:win    # produce the Windows NSIS installer + portable build in re
 Code signing is optional but recommended (avoids Windows SmartScreen warnings). Provide
 `CSC_LINK` and `CSC_KEY_PASSWORD` to the release workflow.
 
+## SlimeVR live feed
+
+`services/solarxr.ts` implements the **SolarXR (flatbuffers)** data feed: it sends a
+`StartDataFeed` request and decodes `DataFeedUpdate` frames into per-tracker battery, signal
+(RSSI), firmware version, body part, and status. The bindings come from the
+`solarxr-protocol` GitHub package (built on install). The codec has a roundtrip unit test, but
+should still be **validated against a running SlimeVR Server**, since that can't be done in CI.
+
 ## Known TODOs (need real hardware / assets)
 
-- Confirm the receiver dongle **VID/PID** and bootloader **volume labels** in `config.ts`.
-- Wire full **SolarXR (flatbuffers)** decoding in `services/slimevr.ts` (currently a thin
-  read-only client; JSON frames are decoded for now).
-- Publish `github.com/vyro-vr/firmware` releases (the firmware step degrades gracefully
-  until then).
-- Verify the **button-press mapping** against final docs.
+- Confirm the receiver dongle **VID/PID** and bootloader **volume labels** in `config.ts`
+  (detection is best-effort; receivers vary, e.g. foxDongle).
+- Validate the live tracker feed against a real SlimeVR Server (especially the battery scale).
+- Publish releases on `github.com/VYRO-VR/jitingcn-smol-slime-firmware` (the firmware step
+  degrades gracefully until then).
 - Add `build/icon.ico`.

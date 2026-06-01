@@ -4,6 +4,7 @@ import { EventEmitter } from 'events'
 import WebSocket from 'ws'
 import { SLIMEVR_WS_URL } from '@shared/config'
 import type { SlimeVrInstall, SlimeVrLiveState, TrackerInfo } from '@shared/types'
+import { buildStartDataFeed, decodeDataFeed } from './solarxr'
 
 /**
  * Detect a local SlimeVR Server install. The installer drops the app under
@@ -83,6 +84,13 @@ export class SlimeVrClient extends EventEmitter {
 
     this.ws.on('open', () => {
       this.update({ connected: true })
+      // Subscribe to the tracker data feed (SolarXR). Harmless to non-SlimeVR
+      // endpoints, which simply ignore the binary frame.
+      try {
+        this.ws?.send(buildStartDataFeed())
+      } catch {
+        // ignore — feed will be retried on the next reconnect
+      }
     })
     this.ws.on('message', (data) => {
       const decoded = this.decodeMessage(data as Buffer)
@@ -112,21 +120,31 @@ export class SlimeVrClient extends EventEmitter {
   }
 
   /**
-   * Decode an inbound frame into a partial live-state. Currently handles the
-   * JSON shape used by tests/mocks; returns null for frames it cannot read
-   * (e.g. raw SolarXR flatbuffers, pending full support).
+   * Decode an inbound frame into a partial live-state. Tries the JSON shape
+   * used by tests/mocks first, then the binary SolarXR data feed used by a
+   * real SlimeVR Server. Returns null for frames it cannot read.
    */
   private decodeMessage(data: Buffer): Partial<SlimeVrLiveState> | null {
+    const json = this.tryJson(data)
+    if (json) return json
+
+    const trackers = decodeDataFeed(new Uint8Array(data))
+    if (trackers) return { connected: true, trackers }
+
+    return null
+  }
+
+  private tryJson(data: Buffer): Partial<SlimeVrLiveState> | null {
     try {
-      const text = data.toString('utf-8')
-      const json = JSON.parse(text) as {
+      const json = JSON.parse(data.toString('utf-8')) as {
         serverVersion?: string
         trackers?: TrackerInfo[]
       }
+      if (!Array.isArray(json.trackers)) return null
       return {
         connected: true,
         serverVersion: json.serverVersion,
-        trackers: Array.isArray(json.trackers) ? json.trackers : []
+        trackers: json.trackers
       }
     } catch {
       return null
