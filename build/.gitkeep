@@ -1,0 +1,2 @@
+# Place build resources here: icon.ico (Windows app icon), installer assets.
+# electron-builder reads this directory via `directories.buildResources`.

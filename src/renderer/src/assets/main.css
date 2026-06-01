@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  @apply bg-surface text-slate-200 antialiased;
+  font-family:
+    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Render fetched documentation HTML readably inside the DocViewer. */
+.doc-html {
+  @apply text-sm leading-relaxed text-slate-300;
+}
+.doc-html h1,
+.doc-html h2,
+.doc-html h3 {
+  @apply font-semibold text-slate-100 mt-4 mb-2;
+}
+.doc-html a {
+  @apply text-brand-400 underline;
+}
+.doc-html ul {
+  @apply list-disc pl-5 my-2;
+}
+.doc-html p {
+  @apply my-2;
+}
