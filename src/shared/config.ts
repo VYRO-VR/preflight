@@ -72,12 +72,6 @@ export const BUTTON_ACTIONS: { input: string; action: string; led: string; detai
     action: 'Calibration',
     led: 'Rainbow until calibrated',
     detail: 'Lay the tracker flat and still until calibration finishes.'
-  },
-  {
-    input: '3 presses',
-    action: 'Pairing',
-    led: 'Flashes blue once per second',
-    detail: 'Pairs the tracker to the receiver.'
   }
 ]
 
