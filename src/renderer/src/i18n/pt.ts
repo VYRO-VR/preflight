@@ -41,6 +41,7 @@ export const pt: Record<string, string> = {
 
   'links.docs': 'Documentação',
   'links.firmware': 'Repositório de firmware',
-  'links.discord': 'Comunidade Discord',
+  'links.discord': 'Discord VYRO VR',
+  'links.slimevrDiscord': 'Discord SlimeVR',
   'links.store': 'Loja'
 }

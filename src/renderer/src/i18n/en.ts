@@ -79,6 +79,7 @@ export const en = {
 
   'links.docs': 'Documentation',
   'links.firmware': 'Firmware repo',
-  'links.discord': 'Discord community',
+  'links.discord': 'VYRO VR Discord',
+  'links.slimevrDiscord': 'SlimeVR Discord',
   'links.store': 'Store'
 }

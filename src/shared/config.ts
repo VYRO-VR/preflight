@@ -87,7 +87,8 @@ export const LINKS = {
   slimevrDownload: 'https://slimevr.dev',
   slimevrDocs: 'https://docs.slimevr.dev',
   steamvr: 'steam://run/250820',
-  discord: 'https://discord.gg/vyrovr'
+  discord: 'https://discord.gg/vyrovr',
+  slimevrDiscord: 'https://discord.gg/SlimeVR'
 }
 
 // Documentation pages cached for offline use and surfaced inside the app.
