@@ -69,7 +69,7 @@ describe('decodeDataFeed', () => {
     const t = trackers![0]
     expect(t.id).toBe('7:1')
     expect(t.name).toBe('LeftAnkle')
-    expect(t.bodyPart).toBe('Left Lower Leg')
+    expect(t.bodyPart).toBe('Left Ankle')
     expect(t.status).toBe('ok')
     expect(t.rssi).toBe(-55)
     expect(t.firmwareVersion).toBe('0.5.0')
