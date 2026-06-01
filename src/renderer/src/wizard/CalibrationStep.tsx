@@ -1,4 +1,4 @@
-import { BUTTON_ACTIONS, LED_CODES, LINKS } from '@shared/config'
+import { BUTTON_ACTIONS, LINKS } from '@shared/config'
 import { useAppStore } from '../store/useAppStore'
 import { StepShell } from '../components/StepShell'
 import { Button } from '../components/Button'
@@ -8,9 +8,9 @@ export function CalibrationStep() {
   return (
     <StepShell title={t('step.calibration.title')}>
       <p className="text-sm text-slate-400">
-        To calibrate, lay the tracker flat and still and press the button twice — the LED flashes to
-        confirm when complete. Then, standing in an I-pose, run a full reset in SlimeVR Server so
-        your skeleton matches your body.
+        To calibrate, lay the tracker flat and still and press the button twice — the LED cycles
+        through rainbow colours until it finishes. Then, standing in an I-pose, run a full reset in
+        SlimeVR Server so your skeleton matches your body.
       </p>
 
       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -22,6 +22,7 @@ export function CalibrationStep() {
             <tr>
               <th className="px-4 py-2">Button</th>
               <th className="px-4 py-2">Action</th>
+              <th className="px-4 py-2">LED</th>
               <th className="px-4 py-2">Notes</th>
             </tr>
           </thead>
@@ -32,23 +33,8 @@ export function CalibrationStep() {
                   {b.input}
                 </td>
                 <td className="px-4 py-2 text-slate-100">{b.action}</td>
+                <td className="px-4 py-2 text-slate-300">{b.led}</td>
                 <td className="px-4 py-2 text-slate-400">{b.detail}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {t('step.calibration.led')}
-      </div>
-      <div className="overflow-hidden rounded-lg border border-surface-border">
-        <table className="w-full text-left text-sm">
-          <tbody>
-            {LED_CODES.map((c) => (
-              <tr key={c.pattern} className="border-t border-surface-border first:border-t-0">
-                <td className="w-52 px-4 py-2 font-medium text-slate-200">{c.pattern}</td>
-                <td className="px-4 py-2 text-slate-400">{c.meaning}</td>
               </tr>
             ))}
           </tbody>

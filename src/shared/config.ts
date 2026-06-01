@@ -59,37 +59,30 @@ export const FIRMWARE_RELEASES_API = `https://api.github.com/repos/${FIRMWARE_RE
 // otherwise the latest non-prerelease release is used.
 export const FIRMWARE_RECOMMENDED_MARKER = '[recommended]'
 
-// Tracker button reference (smol-slime firmware).
-// Source: https://docs.slimevr.dev/smol-slimes/firmware/smol-firmware-serial-and-button-commands.html
-export const BUTTON_ACTIONS: { input: string; action: string; detail: string }[] = [
-  { input: '1 press', action: 'Reset', detail: 'Resets tracking. Use while standing in an I-pose.' },
+// Tracker button reference with VYRO LED feedback colors.
+export const BUTTON_ACTIONS: { input: string; action: string; led: string; detail: string }[] = [
+  {
+    input: '1 press',
+    action: 'Reset',
+    led: 'Flashes purple',
+    detail: 'Resets tracking — use while standing in an I-pose.'
+  },
   {
     input: '2 presses',
     action: 'Calibration',
-    detail: 'Lay the tracker flat and still until the LED flashes to confirm.'
+    led: 'Rainbow until calibrated',
+    detail: 'Lay the tracker flat and still until calibration finishes.'
   },
-  { input: 'Hold 1s', action: 'Deep sleep', detail: 'Powers the tracker down to save battery.' },
-  { input: 'Hold 5s', action: 'Pairing', detail: 'Pairs the tracker to the receiver.' }
+  {
+    input: '3 presses',
+    action: 'Pairing',
+    led: 'Flashes blue once per second',
+    detail: 'Pairs the tracker to the receiver.'
+  }
 ]
 
 // Number of presses to enter DFU / bootloader mode (used by the Firmware step).
 export const DFU_PRESSES = 4
-
-// Tracker LED reference (smol-slime). The firmware signals state through blink
-// patterns; exact colors vary by hardware revision.
-// Source: https://docs.slimevr.dev/smol-slimes/smol-LED-codes.html
-export const LED_CODES: { pattern: string; meaning: string }[] = [
-  { pattern: 'Very short blink', meaning: 'Normal operation (or waking on motion).' },
-  { pattern: '1 long blink per second', meaning: 'Low battery.' },
-  { pattern: 'Off', meaning: 'Deep sleep, or the battery is depleted.' },
-  { pattern: 'Pulsing (while charging)', meaning: 'Charging.' },
-  { pattern: 'Off (while plugged in)', meaning: 'Fully charged.' },
-  { pattern: '1 short blink per second', meaning: 'Pairing mode active.' },
-  { pattern: 'Fading on and off', meaning: 'DFU / firmware-flash mode.' },
-  { pattern: '2 long blinks every 5s', meaning: 'Sensor malfunction.' },
-  { pattern: '3 long blinks every 5s', meaning: 'Connection failure.' },
-  { pattern: '4 long blinks every 5s', meaning: 'Hardware malfunction.' }
-]
 
 export const LINKS = {
   store: 'https://vyrovr.com',
