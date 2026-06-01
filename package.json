@@ -26,6 +26,7 @@
     "electron-store": "^8.2.0",
     "electron-updater": "^6.3.9",
     "flatbuffers": "^22.12.6",
+    "serialport": "^12.0.0",
     "solarxr-protocol": "github:SlimeVR/SolarXR-Protocol",
     "ws": "^8.18.0",
     "zustand": "^4.5.5"

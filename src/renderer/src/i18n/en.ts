@@ -79,5 +79,60 @@ export const en = {
   'links.docs': 'Documentation',
   'links.firmware': 'Firmware repo',
   'links.discord': 'Discord community',
-  'links.store': 'Store'
+  'links.store': 'Store',
+
+  // Home / launcher
+  'home.title': 'What would you like to do?',
+  'home.subtitle': 'Pick a task — we’ll walk you through it step by step.',
+  'home.pair.title': 'Pair New Trackers',
+  'home.pair.body': 'Connect a tracker to your receiver in a few clicks.',
+  'home.calibrate.title': 'Calibrate Trackers',
+  'home.calibrate.body': 'Get accurate tracking with a quick calibration.',
+  'home.troubleshoot.title': 'Troubleshoot Connection Issues',
+  'home.troubleshoot.body': 'Check your setup and fix common problems.',
+  'home.fullsetup': 'Open the full setup guide',
+  'nav.home': 'Home',
+
+  // Pairing flow
+  'pair.title': 'Pair New Trackers',
+  'pair.connect.title': 'Connecting to your receiver',
+  'pair.connect.searching': 'Looking for your receiver…',
+  'pair.connect.found': 'Receiver found',
+  'pair.connect.choose': 'More than one receiver found — pick the one to pair to:',
+  'pair.connect.none.title': 'No receiver found',
+  'pair.connect.none.body':
+    'Plug the receiver into your PC using the included USB extension cable, then try again.',
+  'pair.connect.retry': 'Search again',
+  'pair.connect.use': 'Use this receiver',
+  'pair.firmware.note':
+    'Tip: trackers and the receiver must be on the same firmware version, or they won’t pair.',
+  'pair.listen.title': 'Put your tracker in pairing mode',
+  'pair.listen.instruction':
+    'Press the tracker’s button {presses} times. The LED will flash blue once per second.',
+  'pair.listen.waiting': 'Listening for a tracker…',
+  'pair.listen.timeout':
+    'Still nothing. Make sure the LED is flashing blue once per second, then press the button {presses} times again.',
+  'pair.paired.title': 'New tracker paired! 🎉',
+  'pair.paired.count': '{count} paired this session',
+  'pair.paired.another': 'Pair another',
+  'pair.done': 'Done',
+  'pair.error.title': 'Something went wrong',
+
+  // Calibrate flow
+  'calibrate.title': 'Calibrate Trackers',
+  'calibrate.intro':
+    'Lay each tracker flat and still, then press its button twice — the LED cycles through rainbow colours until it finishes. After that, stand in an I-pose and run a full reset in SlimeVR Server.',
+  'calibrate.buttons': 'Button reference',
+
+  // Troubleshoot flow
+  'troubleshoot.title': 'Troubleshoot Connection Issues',
+  'troubleshoot.intro': 'A quick check of the usual suspects.',
+  'troubleshoot.receiver': 'Receiver connected',
+  'troubleshoot.receiver.fail': 'No receiver detected — plug it in via the USB extension cable.',
+  'troubleshoot.server': 'SlimeVR Server',
+  'troubleshoot.server.fail': 'Not connected — launch SlimeVR Server, then re-check.',
+  'troubleshoot.trackers': 'Trackers online',
+  'troubleshoot.trackers.fail':
+    'No trackers seen yet — power them on, or pair them with “Pair New Trackers”.',
+  'troubleshoot.recheck': 'Re-check'
 }

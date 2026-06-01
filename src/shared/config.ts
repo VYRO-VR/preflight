@@ -84,6 +84,33 @@ export const BUTTON_ACTIONS: { input: string; action: string; led: string; detai
 // Number of presses to enter DFU / bootloader mode (used by the Firmware step).
 export const DFU_PRESSES = 4
 
+// Number of button presses that puts a tracker into pairing mode (LED flashes
+// blue once per second). Surfaced in the guided pairing flow.
+export const PAIRING_PRESSES = 3
+
+// Receiver serial-console protocol used by the guided pairing flow.
+//
+// IMPORTANT: these values are firmware-specific. The nRF/smol-slime receiver
+// exposes a USB serial (CDC) console; the host enters pairing mode and the
+// receiver prints an "Added device …" line for each tracker it accepts. Confirm
+// the baud rate, the pairing command, and the output format against the VYRO
+// firmware fork (VYRO-VR/jitingcn-smol-slime-firmware) or real hardware before
+// release — everything else in the pairing flow reads from here, so a protocol
+// correction is a one-file change.
+export const RECEIVER_SERIAL = {
+  baudRate: 115200,
+  /** Command/keystroke sent to put the receiver into pairing mode. */
+  enterPairingCmd: 'pair\n',
+  /** Command/keystroke sent to take the receiver back out of pairing mode. */
+  exitPairingCmd: '\n',
+  /**
+   * Matches the receiver console line printed when a tracker is paired, e.g.
+   * `<inf> esb_event: Added device on id 0 with address 95CB23A0FDF7`.
+   * Capture group 1 = slot id, group 2 = device address.
+   */
+  addedDeviceRegex: /Added device on id (\d+) with address ([0-9A-Fa-f]+)/
+}
+
 export const LINKS = {
   store: 'https://vyrovr.com',
   docs: 'https://docs.vyrovr.com',

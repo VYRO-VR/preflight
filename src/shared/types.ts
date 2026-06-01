@@ -91,6 +91,30 @@ export interface UsbDeviceMatch {
 }
 
 // ---------------------------------------------------------------------------
+// Receiver pairing (serial)
+// ---------------------------------------------------------------------------
+
+/** A candidate receiver found on a serial port. */
+export interface ReceiverPort {
+  /** Serial path, e.g. "COM3" (Windows) or "/dev/ttyACM0". */
+  path: string
+  /** Friendly label for the picker, e.g. "foxDongle / SlimeVR nRF receiver (COM3)". */
+  label: string
+  vendorId?: string
+  productId?: string
+}
+
+/**
+ * Events streamed from the receiver during a pairing session. `paired` is the
+ * one the UI celebrates; `log` carries raw console lines for diagnostics.
+ */
+export type PairingEvent =
+  | { type: 'status'; status: 'opening' | 'listening' | 'stopped' }
+  | { type: 'paired'; id: string; address: string; line: string }
+  | { type: 'log'; line: string }
+  | { type: 'error'; message: string }
+
+// ---------------------------------------------------------------------------
 // Firmware
 // ---------------------------------------------------------------------------
 
@@ -178,6 +202,16 @@ export interface Api {
   }
   usb: {
     detectReceiver: () => Promise<UsbDeviceMatch>
+  }
+  receiver: {
+    /** List receivers found on serial ports (for the pairing flow's picker). */
+    list: () => Promise<ReceiverPort[]>
+    /** Open the receiver and enter pairing mode. */
+    startPairing: (path: string) => Promise<void>
+    /** Exit pairing mode and release the port. */
+    stopPairing: () => Promise<void>
+    /** Subscribe to pairing events. Returns an unsubscribe function. */
+    onPairingEvent: (cb: (event: PairingEvent) => void) => () => void
   }
   firmware: {
     getCatalog: () => Promise<FirmwareCatalog>

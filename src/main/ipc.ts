@@ -3,6 +3,7 @@ import { getSystemInfo } from './services/system'
 import { getSteamVrInfo } from './services/steamvr'
 import { SlimeVrClient, getSlimeVrInstall } from './services/slimevr'
 import { detectReceiver } from './services/usb'
+import { ReceiverPairingClient, listReceivers } from './services/receiver-serial'
 import {
   getFirmwareCatalog,
   detectBootloaderDrives,
@@ -24,6 +25,11 @@ export function registerIpc(win: BrowserWindow): SlimeVrClient {
     if (!win.isDestroyed()) win.webContents.send('slimevr:live-state', state)
   })
 
+  const receiver = new ReceiverPairingClient()
+  receiver.on('event', (event) => {
+    if (!win.isDestroyed()) win.webContents.send('receiver:pairing-event', event)
+  })
+
   ipcMain.handle('system:get-info', () => getSystemInfo())
   ipcMain.handle('steamvr:get-info', () => getSteamVrInfo())
 
@@ -32,6 +38,10 @@ export function registerIpc(win: BrowserWindow): SlimeVrClient {
   ipcMain.handle('slimevr:disconnect', () => slime.disconnect())
 
   ipcMain.handle('usb:detect-receiver', () => detectReceiver())
+
+  ipcMain.handle('receiver:list', () => listReceivers())
+  ipcMain.handle('receiver:start-pairing', (_e, path: string) => receiver.startPairing(path))
+  ipcMain.handle('receiver:stop-pairing', () => receiver.stopPairing())
 
   ipcMain.handle('firmware:get-catalog', () => getFirmwareCatalog())
   ipcMain.handle('firmware:detect-drives', () => detectBootloaderDrives())

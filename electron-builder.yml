@@ -8,6 +8,11 @@ files:
   - out/**/*
   - resources/**/*
   - package.json
+# serialport ships a native binding that must stay outside the asar archive so
+# it can be loaded at runtime.
+asarUnpack:
+  - '**/node_modules/@serialport/**'
+  - '**/node_modules/serialport/**'
 extraResources:
   - from: resources/docs-cache
     to: docs-cache

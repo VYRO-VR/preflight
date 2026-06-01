@@ -39,5 +39,56 @@ export const pt: Record<string, string> = {
   'links.docs': 'Documentação',
   'links.firmware': 'Repositório de firmware',
   'links.discord': 'Comunidade Discord',
-  'links.store': 'Loja'
+  'links.store': 'Loja',
+
+  'home.title': 'O que você gostaria de fazer?',
+  'home.subtitle': 'Escolha uma tarefa — vamos guiá-lo passo a passo.',
+  'home.pair.title': 'Parear Novos Rastreadores',
+  'home.pair.body': 'Conecte um rastreador ao receptor em poucos cliques.',
+  'home.calibrate.title': 'Calibrar Rastreadores',
+  'home.calibrate.body': 'Tenha um rastreamento preciso com uma calibração rápida.',
+  'home.troubleshoot.title': 'Resolver Problemas de Conexão',
+  'home.troubleshoot.body': 'Verifique sua configuração e resolva problemas comuns.',
+  'home.fullsetup': 'Abrir o guia de configuração completo',
+  'nav.home': 'Início',
+
+  'pair.title': 'Parear Novos Rastreadores',
+  'pair.connect.title': 'Conectando ao seu receptor',
+  'pair.connect.searching': 'Procurando o seu receptor…',
+  'pair.connect.found': 'Receptor encontrado',
+  'pair.connect.choose': 'Mais de um receptor encontrado — escolha qual usar:',
+  'pair.connect.none.title': 'Nenhum receptor encontrado',
+  'pair.connect.none.body':
+    'Conecte o receptor ao PC usando o cabo de extensão USB incluído e tente novamente.',
+  'pair.connect.retry': 'Procurar novamente',
+  'pair.connect.use': 'Usar este receptor',
+  'pair.firmware.note':
+    'Dica: os rastreadores e o receptor devem ter a mesma versão de firmware, senão não pareiam.',
+  'pair.listen.title': 'Coloque o rastreador em modo de pareamento',
+  'pair.listen.instruction':
+    'Pressione o botão do rastreador {presses} vezes. O LED piscará azul uma vez por segundo.',
+  'pair.listen.waiting': 'Aguardando um rastreador…',
+  'pair.listen.timeout':
+    'Ainda nada. Confirme que o LED pisca azul uma vez por segundo e pressione o botão {presses} vezes novamente.',
+  'pair.paired.title': 'Novo rastreador pareado! 🎉',
+  'pair.paired.count': '{count} pareados nesta sessão',
+  'pair.paired.another': 'Parear outro',
+  'pair.done': 'Concluir',
+  'pair.error.title': 'Algo deu errado',
+
+  'calibrate.title': 'Calibrar Rastreadores',
+  'calibrate.intro':
+    'Deixe cada rastreador deitado e parado, depois pressione o botão duas vezes — o LED passa pelas cores do arco-íris até terminar. Em seguida, em pé numa I-pose, faça um reset completo no SlimeVR Server.',
+  'calibrate.buttons': 'Referência de botões',
+
+  'troubleshoot.title': 'Resolver Problemas de Conexão',
+  'troubleshoot.intro': 'Uma verificação rápida dos suspeitos de sempre.',
+  'troubleshoot.receiver': 'Receptor conectado',
+  'troubleshoot.receiver.fail': 'Nenhum receptor detectado — conecte-o pelo cabo de extensão USB.',
+  'troubleshoot.server': 'SlimeVR Server',
+  'troubleshoot.server.fail': 'Não conectado — abra o SlimeVR Server e verifique novamente.',
+  'troubleshoot.trackers': 'Rastreadores online',
+  'troubleshoot.trackers.fail':
+    'Nenhum rastreador visto ainda — ligue-os ou pareie com “Parear Novos Rastreadores”.',
+  'troubleshoot.recheck': 'Verificar novamente'
 }

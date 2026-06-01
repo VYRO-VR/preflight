@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Api, SlimeVrLiveState, AppSettings, FlashRequest } from '@shared/types'
+import type { Api, SlimeVrLiveState, AppSettings, FlashRequest, PairingEvent } from '@shared/types'
 
 const api: Api = {
   system: {
@@ -20,6 +20,16 @@ const api: Api = {
   },
   usb: {
     detectReceiver: () => ipcRenderer.invoke('usb:detect-receiver')
+  },
+  receiver: {
+    list: () => ipcRenderer.invoke('receiver:list'),
+    startPairing: (path: string) => ipcRenderer.invoke('receiver:start-pairing', path),
+    stopPairing: () => ipcRenderer.invoke('receiver:stop-pairing'),
+    onPairingEvent: (cb: (event: PairingEvent) => void) => {
+      const listener = (_e: unknown, event: PairingEvent) => cb(event)
+      ipcRenderer.on('receiver:pairing-event', listener)
+      return () => ipcRenderer.removeListener('receiver:pairing-event', listener)
+    }
   },
   firmware: {
     getCatalog: () => ipcRenderer.invoke('firmware:get-catalog'),

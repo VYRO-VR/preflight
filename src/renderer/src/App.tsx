@@ -3,6 +3,12 @@ import { SUPPORTED_LOCALES, type Locale } from './i18n'
 import { useAppStore } from './store/useAppStore'
 import { STEPS } from './wizard/steps'
 import { Button } from './components/Button'
+import { HomeScreen, type HomeAction } from './home/HomeScreen'
+import { PairingFlow } from './flows/PairingFlow'
+import { CalibrateFlow } from './flows/CalibrateFlow'
+import { TroubleshootFlow } from './flows/TroubleshootFlow'
+
+type View = 'home' | 'wizard' | 'pair' | 'calibrate' | 'troubleshoot'
 
 export default function App() {
   const init = useAppStore((s) => s.init)
@@ -13,6 +19,7 @@ export default function App() {
   const updateStatus = useAppStore((s) => s.updateStatus)
   const selectedProduct = useAppStore((s) => s.selectedProduct)
 
+  const [view, setView] = useState<View>('home')
   const [index, setIndex] = useState(0)
   const [ready, setReady] = useState(false)
 
@@ -25,6 +32,15 @@ export default function App() {
       <div className="flex h-full items-center justify-center text-slate-500">Loading…</div>
     )
   }
+
+  const goHome = (): void => setView('home')
+
+  if (view === 'home') {
+    return <HomeScreen onSelect={(action: HomeAction) => setView(action)} />
+  }
+  if (view === 'pair') return <PairingFlow onExit={goHome} />
+  if (view === 'calibrate') return <CalibrateFlow onExit={goHome} />
+  if (view === 'troubleshoot') return <TroubleshootFlow onExit={goHome} />
 
   const Step = STEPS[index].Component
   const isFirst = index === 0
@@ -39,6 +55,12 @@ export default function App() {
         <div className="px-5 py-5">
           <div className="text-sm font-bold tracking-wide text-brand-400">VYRO VR</div>
           <div className="text-xs text-slate-500">{t('app.title')}</div>
+          <button
+            onClick={goHome}
+            className="mt-2 text-xs text-slate-400 hover:text-brand-300"
+          >
+            ← {t('nav.home')}
+          </button>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
           {STEPS.map((s, i) => {
