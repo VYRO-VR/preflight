@@ -54,6 +54,7 @@ export const en = {
   'step.mounting.title': 'Mounting & Assignment',
   'step.calibration.title': 'Calibration',
   'step.calibration.buttons': 'Button reference',
+  'step.calibration.vyrodocs': 'Open VYRO VR docs',
   'step.calibration.docs': 'Open smol-slime docs',
 
   'step.firmware.title': 'Firmware',

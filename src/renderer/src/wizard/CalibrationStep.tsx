@@ -41,9 +41,14 @@ export function CalibrationStep() {
         </table>
       </div>
 
-      <Button variant="ghost" onClick={() => window.api.docs.openExternal(LINKS.smolDocs)}>
-        {t('step.calibration.docs')}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="ghost" onClick={() => window.api.docs.openExternal(LINKS.docs)}>
+          {t('step.calibration.vyrodocs')}
+        </Button>
+        <Button variant="ghost" onClick={() => window.api.docs.openExternal(LINKS.smolDocs)}>
+          {t('step.calibration.docs')}
+        </Button>
+      </div>
     </StepShell>
   )
 }
