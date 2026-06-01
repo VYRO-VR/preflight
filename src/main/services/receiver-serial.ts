@@ -86,7 +86,12 @@ export class ReceiverPairingClient extends EventEmitter {
     if (!port) return
     try {
       if (port.isOpen) {
-        port.write(RECEIVER_SERIAL.exitPairingCmd)
+        // Take the receiver out of pairing mode, and flush the command before
+        // closing — otherwise the write can be dropped and pairing mode stays
+        // on after the user leaves the flow.
+        await new Promise<void>((resolve) => {
+          port.write(RECEIVER_SERIAL.exitPairingCmd, () => port.drain(() => resolve()))
+        })
         await new Promise<void>((resolve) => port.close(() => resolve()))
       }
     } catch {

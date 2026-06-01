@@ -90,7 +90,8 @@ export const en = {
   'home.calibrate.body': 'Get accurate tracking with a quick calibration.',
   'home.troubleshoot.title': 'Troubleshoot Connection Issues',
   'home.troubleshoot.body': 'Check your setup and fix common problems.',
-  'home.fullsetup': 'Open the full setup guide',
+  'home.wizard.title': 'Full Setup Guide',
+  'home.wizard.body': 'Walk through the complete setup, step by step.',
   'nav.home': 'Home',
 
   // Pairing flow

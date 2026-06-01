@@ -49,7 +49,8 @@ export const pt: Record<string, string> = {
   'home.calibrate.body': 'Tenha um rastreamento preciso com uma calibração rápida.',
   'home.troubleshoot.title': 'Resolver Problemas de Conexão',
   'home.troubleshoot.body': 'Verifique sua configuração e resolva problemas comuns.',
-  'home.fullsetup': 'Abrir o guia de configuração completo',
+  'home.wizard.title': 'Guia de Configuração Completo',
+  'home.wizard.body': 'Percorra toda a configuração, passo a passo.',
   'nav.home': 'Início',
 
   'pair.title': 'Parear Novos Rastreadores',

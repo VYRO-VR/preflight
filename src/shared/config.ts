@@ -101,8 +101,12 @@ export const RECEIVER_SERIAL = {
   baudRate: 115200,
   /** Command/keystroke sent to put the receiver into pairing mode. */
   enterPairingCmd: 'pair\n',
-  /** Command/keystroke sent to take the receiver back out of pairing mode. */
-  exitPairingCmd: '\n',
+  /**
+   * Command/keystroke sent to take the receiver back out of pairing mode.
+   * Pairing mode is a toggle (the same control enters and exits it), so this
+   * re-sends the pairing command by default. VERIFY against the firmware.
+   */
+  exitPairingCmd: 'pair\n',
   /**
    * Matches the receiver console line printed when a tracker is paired, e.g.
    * `<inf> esb_event: Added device on id 0 with address 95CB23A0FDF7`.

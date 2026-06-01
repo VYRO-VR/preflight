@@ -31,14 +31,13 @@ export function HomeScreen({ onSelect }: { onSelect: (action: HomeAction) => voi
           body={t('home.troubleshoot.body')}
           onClick={() => onSelect('troubleshoot')}
         />
+        <ActionCard
+          icon="🧭"
+          title={t('home.wizard.title')}
+          body={t('home.wizard.body')}
+          onClick={() => onSelect('wizard')}
+        />
       </div>
-
-      <button
-        onClick={() => onSelect('wizard')}
-        className="mt-6 self-start text-sm text-slate-400 underline-offset-4 hover:text-brand-300 hover:underline"
-      >
-        {t('home.fullsetup')}
-      </button>
     </div>
   )
 }
