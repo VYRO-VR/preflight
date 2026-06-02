@@ -17,6 +17,12 @@ extraResources:
   - from: resources/docs-cache
     to: docs-cache
     filter: ['**/*']
+  # Nordic's nrfutil binary for hex/DFU receiver flashing. The binary itself is
+  # not committed (large, platform-specific) — drop nrfutil(.exe) into
+  # resources/nrfutil/ before packaging; see resources/nrfutil/README.md.
+  - from: resources/nrfutil
+    to: nrfutil
+    filter: ['**/*']
 win:
   target:
     - target: nsis

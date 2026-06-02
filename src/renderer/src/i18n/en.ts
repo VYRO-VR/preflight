@@ -90,6 +90,8 @@ export const en = {
   'home.calibrate.body': 'Get accurate tracking with a quick calibration.',
   'home.troubleshoot.title': 'Troubleshoot Connection Issues',
   'home.troubleshoot.body': 'Check your setup and fix common problems.',
+  'home.receiver.title': 'Update Receiver Firmware',
+  'home.receiver.body': 'Check your receiver and update it to match your trackers.',
   'home.wizard.title': 'Full Setup Guide',
   'home.wizard.body': 'Walk through the complete setup, step by step.',
   'nav.home': 'Home',
@@ -135,7 +137,35 @@ export const en = {
   'troubleshoot.trackers': 'Trackers online',
   'troubleshoot.trackers.fail':
     'No trackers seen yet — power them on, or pair them with “Pair New Trackers”.',
-  'troubleshoot.recheck': 'Re-check'
+  'troubleshoot.recheck': 'Re-check',
+
+  // Receiver firmware update flow
+  'receiver.update.title': 'Update Receiver Firmware',
+  'receiver.update.searching': 'Looking for your receiver…',
+  'receiver.update.choose': 'More than one receiver found — pick one:',
+  'receiver.update.use': 'Use this receiver',
+  'receiver.update.reading': 'Reading the receiver’s firmware…',
+  'receiver.update.receiverfw': 'Receiver firmware',
+  'receiver.update.unknownfw': 'Unknown',
+  'receiver.update.status': 'Firmware match',
+  'receiver.update.uptodate': 'Up to date with your trackers',
+  'receiver.update.mismatch': 'Mismatch — receiver should be updated',
+  'receiver.update.cantcompare':
+    'Couldn’t compare — power on a tracker so its firmware is visible, then retry.',
+  'receiver.update.mismatch.detail': 'Receiver build {receiver}, trackers build {trackers}.',
+  'receiver.update.method': 'Update method:',
+  'receiver.update.method.uf2': 'UF2 drive (most dongles)',
+  'receiver.update.method.dfu': 'Hex / DFU (HolyIOT)',
+  'receiver.update.noasset': 'No matching firmware file is available in the latest release yet.',
+  'receiver.update.nonrfutil':
+    'The hex/DFU flashing tool (nrfutil) isn’t bundled in this build yet, so this receiver can’t be updated automatically.',
+  'receiver.update.ack': 'I understand updating may soft-brick the receiver and accept the risk.',
+  'receiver.update.flash': 'Update receiver',
+  'receiver.update.flashing': 'Updating…',
+  'receiver.update.dontunplug': 'Don’t unplug the receiver until this finishes.',
+  'receiver.update.nodrive':
+    'The receiver didn’t appear as a drive. Make sure it entered update mode and try again.',
+
   'links.discord': 'VYRO VR Discord',
   'links.slimevrDiscord': 'SlimeVR Discord'
 }

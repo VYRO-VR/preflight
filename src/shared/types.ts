@@ -94,6 +94,9 @@ export interface UsbDeviceMatch {
 // Receiver pairing (serial)
 // ---------------------------------------------------------------------------
 
+/** How a firmware update is applied to a receiver. */
+export type ReceiverFlashMethod = 'uf2' | 'dfu-zip'
+
 /** A candidate receiver found on a serial port. */
 export interface ReceiverPort {
   /** Serial path, e.g. "COM3" (Windows) or "/dev/ttyACM0". */
@@ -102,6 +105,33 @@ export interface ReceiverPort {
   label: string
   vendorId?: string
   productId?: string
+  /** Update method inferred from the matched USB id (defaults to 'uf2'). */
+  flashMethod: ReceiverFlashMethod
+}
+
+/** Firmware info read from a receiver over its serial console. */
+export interface ReceiverInfo {
+  firmwareVersion?: string
+  /** Build-date token extracted from the firmware string, when present. */
+  buildDate?: string
+  /** Raw console output, for diagnostics. */
+  raw: string
+}
+
+/** Result of comparing a receiver's firmware build against the trackers'. */
+export interface FirmwareMatch {
+  status: 'match' | 'mismatch' | 'unknown'
+  receiverBuildDate?: string
+  trackerBuildDate?: string
+  detail?: string
+}
+
+/** Request to flash a Secure DFU .zip package to a receiver via nrfutil. */
+export interface ReceiverDfuRequest {
+  assetUrl: string
+  assetName: string
+  /** Serial path of the receiver in DFU mode, when known. */
+  path?: string
 }
 
 /**
@@ -212,12 +242,20 @@ export interface Api {
     stopPairing: () => Promise<void>
     /** Subscribe to pairing events. Returns an unsubscribe function. */
     onPairingEvent: (cb: (event: PairingEvent) => void) => () => void
+    /** Read the receiver's firmware info over its serial console. */
+    readInfo: (path: string) => Promise<ReceiverInfo>
+    /** Reboot the receiver into its DFU bootloader. */
+    enterDfu: (path: string) => Promise<void>
   }
   firmware: {
     getCatalog: () => Promise<FirmwareCatalog>
     detectBootloaderDrives: () => Promise<BootloaderDrive[]>
     autoFlash: (req: FlashRequest) => Promise<FlashResult>
     downloadAsset: (assetUrl: string, assetName: string) => Promise<string>
+    /** Whether the bundled nrfutil binary is available for DFU flashing. */
+    nrfutilAvailable: () => Promise<boolean>
+    /** Flash a Secure DFU .zip package to a receiver via nrfutil. */
+    flashReceiverDfu: (req: ReceiverDfuRequest) => Promise<FlashResult>
   }
   docs: {
     getPage: (slug: string) => Promise<string>

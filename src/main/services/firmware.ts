@@ -13,10 +13,14 @@ import {
 import type {
   FirmwareCatalog,
   FirmwareRelease,
+  FirmwareAsset,
+  ReceiverFlashMethod,
+  ReceiverDfuRequest,
   BootloaderDrive,
   FlashRequest,
   FlashResult
 } from '@shared/types'
+import { programDfuPackage, nrfutilAvailable } from './nrfutil'
 
 const execAsync = promisify(exec)
 
@@ -43,10 +47,24 @@ function mapRelease(r: GithubRelease): FirmwareRelease {
     notes,
     prerelease: r.prerelease,
     recommended: notes.toLowerCase().includes(FIRMWARE_RECOMMENDED_MARKER.toLowerCase()),
+    // Keep both flashable asset types. .uf2 sorts first so existing callers that
+    // grab assets[0] for the UF2 tracker flow keep working; the receiver flow
+    // selects an asset by method via pickAsset().
     assets: (r.assets || [])
-      .filter((a) => a.name.toLowerCase().endsWith('.uf2'))
+      .filter((a) => /\.(uf2|zip)$/i.test(a.name))
       .map((a) => ({ name: a.name, downloadUrl: a.browser_download_url, sizeBytes: a.size }))
+      .sort((a, b) => Number(b.name.toLowerCase().endsWith('.uf2')) - Number(a.name.toLowerCase().endsWith('.uf2')))
   }
+}
+
+/** Pick the asset that matches a receiver's flash method (.uf2 vs Secure DFU .zip). */
+export function pickAsset(
+  release: FirmwareRelease | undefined,
+  method: ReceiverFlashMethod
+): FirmwareAsset | undefined {
+  if (!release) return undefined
+  const ext = method === 'dfu-zip' ? '.zip' : '.uf2'
+  return release.assets.find((a) => a.name.toLowerCase().endsWith(ext))
 }
 
 /**
@@ -190,5 +208,27 @@ export async function autoFlash(req: FlashRequest): Promise<FlashResult> {
       ok: false,
       message: err instanceof Error ? err.message : 'Flash failed.'
     }
+  }
+}
+
+/**
+ * Flash a Secure DFU .zip package to a receiver (e.g. HolyIOT) via nrfutil.
+ * The receiver must already be in its DFU bootloader. Downloads the package
+ * first, then hands off to nrfutil — the same engine nRF Connect Programmer
+ * uses, so no external app is needed.
+ */
+export async function flashReceiverDfu(req: ReceiverDfuRequest): Promise<FlashResult> {
+  if (!(await nrfutilAvailable())) {
+    return {
+      ok: false,
+      message:
+        'The firmware tool (nrfutil) is not bundled in this build, so hex/DFU receivers cannot be flashed automatically yet.'
+    }
+  }
+  try {
+    const local = await downloadAsset(req.assetUrl, req.assetName)
+    return await programDfuPackage({ packagePath: local, path: req.path })
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : 'Flash failed.' }
   }
 }

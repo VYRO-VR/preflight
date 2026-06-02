@@ -34,14 +34,28 @@ export const PRODUCTS: ProductDef[] = [
 // convenience only. The authoritative signal that the receiver works is
 // whether your trackers appear in SlimeVR Server (see the Trackers step).
 // Add IDs as they are confirmed against real hardware.
-export const RECEIVER_USB_IDS: { vendorId: string; productId: string; label: string }[] = [
-  { vendorId: '1209', productId: '7690', label: 'foxDongle / SlimeVR nRF receiver' },
-  { vendorId: '1915', productId: '520F', label: 'Nordic Semiconductor nRF52840 Dongle' },
-  { vendorId: '1915', productId: '521F', label: 'Nordic nRF52840 (CDC)' },
-  { vendorId: '2FE3', productId: '000C', label: 'nRF52840 USB Serial' },
-  { vendorId: '239A', productId: '0029', label: 'Adafruit nRF52840 (UF2)' },
-  { vendorId: '10C4', productId: 'EA60', label: 'Silicon Labs CP210x (UART receiver)' },
-  { vendorId: '1A86', productId: '7523', label: 'CH340 (UART receiver)' }
+//
+// `flashMethod` decides how a firmware update is applied to that receiver:
+//   - 'uf2'     → drag-drop a .uf2 onto the UF2 bootloader drive (most dongles)
+//   - 'dfu-zip' → flash a Secure DFU .zip with nrfutil (HolyIOT and similar
+//                 modules that have no UF2 drive)
+// Unknown receivers default to 'uf2'; the update flow lets the user override.
+export type ReceiverFlashMethod = 'uf2' | 'dfu-zip'
+
+export const RECEIVER_USB_IDS: {
+  vendorId: string
+  productId: string
+  label: string
+  flashMethod: ReceiverFlashMethod
+}[] = [
+  { vendorId: '1209', productId: '7690', label: 'foxDongle / SlimeVR nRF receiver', flashMethod: 'uf2' },
+  { vendorId: '1915', productId: '520F', label: 'Nordic Semiconductor nRF52840 Dongle', flashMethod: 'uf2' },
+  { vendorId: '1915', productId: '521F', label: 'Nordic nRF52840 (CDC)', flashMethod: 'uf2' },
+  { vendorId: '2FE3', productId: '000C', label: 'nRF52840 USB Serial', flashMethod: 'uf2' },
+  { vendorId: '239A', productId: '0029', label: 'Adafruit nRF52840 (UF2)', flashMethod: 'uf2' },
+  { vendorId: '10C4', productId: 'EA60', label: 'Silicon Labs CP210x (UART receiver)', flashMethod: 'uf2' },
+  { vendorId: '1A86', productId: '7523', label: 'CH340 (UART receiver)', flashMethod: 'uf2' }
+  // TODO: add HolyIOT receiver VID/PID(s) with flashMethod: 'dfu-zip' once confirmed.
 ]
 
 // Mass-storage volume labels exposed by a tracker in UF2/DFU bootloader mode.
@@ -106,8 +120,28 @@ export const RECEIVER_SERIAL = {
    * `<inf> esb_event: Added device on id 0 with address 95CB23A0FDF7`.
    * Capture group 1 = slot id, group 2 = device address.
    */
-  addedDeviceRegex: /Added device on id (\d+) with address ([0-9A-Fa-f]+)/
+  addedDeviceRegex: /Added device on id (\d+) with address ([0-9A-Fa-f]+)/,
+
+  /** Command/keystroke that makes the receiver print its firmware info. */
+  versionCmd: 'version\n',
+  /** Command/keystroke that reboots the receiver into its DFU bootloader. */
+  dfuCmd: 'dfu\n',
+  /**
+   * Extracts the firmware version token from the receiver's `version` output,
+   * e.g. `firmware version 0.5.0` → `0.5.0`. VERIFY against the firmware.
+   */
+  versionRegex: /version[:\s]+v?([0-9][0-9A-Za-z.+-]*)/i
 }
+
+/**
+ * Extracts a build-date token (e.g. `Jun  1 2026`, `2026-06-01`) from any
+ * firmware version/build string — used to compare a receiver against the
+ * trackers. Matches an ISO date or a C `__DATE__` style date. Returns the
+ * matched substring as-is so equal builds compare equal. VERIFY the firmware
+ * actually embeds a build date; otherwise the version string is compared whole.
+ */
+export const FIRMWARE_BUILD_DATE_REGEX =
+  /\d{4}-\d{2}-\d{2}|[A-Za-z]{3}\s+\d{1,2}\s+\d{4}/
 
 export const LINKS = {
   store: 'https://vyrovr.com',
