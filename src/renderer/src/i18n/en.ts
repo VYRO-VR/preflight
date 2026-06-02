@@ -38,9 +38,9 @@ export const en = {
 
   'step.receiver.title': 'Connect the Receiver',
   'step.receiver.body': 'Connect the receiver and place it above your play space.',
-  'step.receiver.cable.title': 'Use the USB extension cable.',
+  'step.receiver.cable.title': "I've plugged the receiver into the extension cable.",
   'step.receiver.cable.body':
-    'Always plug the receiver into the included extension cable, then into your PC — never directly into the case. This is required for reliable tracking.',
+    'Connect the receiver to the included extension cable, then into your PC — never directly into the case. This is required for reliable tracking, and to continue.',
   'step.receiver.detected': 'Receiver',
   'step.receiver.notdetected': "Couldn't auto-detect a receiver",
   'step.receiver.notdetected.hint':
@@ -54,6 +54,7 @@ export const en = {
   'step.mounting.title': 'Mounting & Assignment',
   'step.calibration.title': 'Calibration',
   'step.calibration.buttons': 'Button reference',
+  'step.calibration.vyrodocs': 'Open VYRO VR docs',
   'step.calibration.docs': 'Open smol-slime docs',
 
   'step.firmware.title': 'Firmware',
@@ -78,7 +79,6 @@ export const en = {
 
   'links.docs': 'Documentation',
   'links.firmware': 'Firmware repo',
-  'links.discord': 'Discord community',
   'links.store': 'Store',
 
   // Home / launcher
@@ -136,4 +136,6 @@ export const en = {
   'troubleshoot.trackers.fail':
     'No trackers seen yet — power them on, or pair them with “Pair New Trackers”.',
   'troubleshoot.recheck': 'Re-check'
+  'links.discord': 'VYRO VR Discord',
+  'links.slimevrDiscord': 'SlimeVR Discord'
 }

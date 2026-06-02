@@ -72,12 +72,6 @@ export const BUTTON_ACTIONS: { input: string; action: string; led: string; detai
     action: 'Calibration',
     led: 'Rainbow until calibrated',
     detail: 'Lay the tracker flat and still until calibration finishes.'
-  },
-  {
-    input: '3 presses',
-    action: 'Pairing',
-    led: 'Flashes blue once per second',
-    detail: 'Pairs the tracker to the receiver.'
   }
 ]
 
@@ -124,7 +118,8 @@ export const LINKS = {
   slimevrDownload: 'https://slimevr.dev',
   slimevrDocs: 'https://docs.slimevr.dev',
   steamvr: 'steam://run/250820',
-  discord: 'https://discord.gg/vyrovr'
+  discord: 'https://discord.gg/vyrovr',
+  slimevrDiscord: 'https://discord.gg/SlimeVR'
 }
 
 // Documentation pages cached for offline use and surfaced inside the app.

@@ -18,6 +18,7 @@ export default function App() {
   const appVersion = useAppStore((s) => s.appVersion)
   const updateStatus = useAppStore((s) => s.updateStatus)
   const selectedProduct = useAppStore((s) => s.selectedProduct)
+  const cableAcknowledged = useAppStore((s) => s.cableAcknowledged)
 
   const [view, setView] = useState<View>('home')
   const [index, setIndex] = useState(0)
@@ -43,10 +44,14 @@ export default function App() {
   if (view === 'troubleshoot') return <TroubleshootFlow onExit={goHome} />
 
   const Step = STEPS[index].Component
+  const currentId = STEPS[index].id
   const isFirst = index === 0
   const isLast = index === STEPS.length - 1
-  // The welcome step gates progress on a product selection.
-  const canAdvance = index !== 0 || Boolean(selectedProduct)
+  // Gate progress: the welcome step needs a product; the receiver step needs
+  // the user to confirm the extension cable is connected.
+  const canAdvance =
+    (currentId !== 'welcome' || Boolean(selectedProduct)) &&
+    (currentId !== 'receiver' || cableAcknowledged)
 
   return (
     <div className="flex h-full">
