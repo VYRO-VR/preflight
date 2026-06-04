@@ -40,6 +40,12 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      # node-gyp (used to rebuild serialport's native binding) imports the
+      # stdlib `distutils`, removed in Python 3.12+. Pin 3.11 so the rebuild
+      # works on runners (notably macOS, which compiles the x64 slice).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - run: npm ci
       - run: npm run build
       # Build the installers without publishing anywhere.
