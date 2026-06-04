@@ -27,6 +27,9 @@ export const pt: Record<string, string> = {
     'Instale e abra o SlimeVR Server (Steam ou standalone) antes de continuar.',
   'step.software.getslimevr': 'Obter SlimeVR',
   'step.receiver.title': 'Conecte o Receptor',
+  'step.receiver.cable.title': 'Conectei o receptor ao cabo de extensão.',
+  'step.receiver.cable.body':
+    'Conecte o receptor ao cabo de extensão incluído e depois ao PC — nunca diretamente. Isso é necessário para um rastreamento confiável e para continuar.',
   'step.trackers.title': 'Ligue os Rastreadores',
   'step.mounting.title': 'Montagem e Atribuição',
   'step.calibration.title': 'Calibração',
@@ -49,6 +52,8 @@ export const pt: Record<string, string> = {
   'home.calibrate.body': 'Tenha um rastreamento preciso com uma calibração rápida.',
   'home.troubleshoot.title': 'Resolver Problemas de Conexão',
   'home.troubleshoot.body': 'Verifique sua configuração e resolva problemas comuns.',
+  'home.receiver.title': 'Atualizar Firmware do Receptor',
+  'home.receiver.body': 'Verifique o receptor e atualize-o para combinar com os rastreadores.',
   'home.wizard.title': 'Guia de Configuração Completo',
   'home.wizard.body': 'Percorra toda a configuração, passo a passo.',
   'nav.home': 'Início',
@@ -91,5 +96,32 @@ export const pt: Record<string, string> = {
   'troubleshoot.trackers': 'Rastreadores online',
   'troubleshoot.trackers.fail':
     'Nenhum rastreador visto ainda — ligue-os ou pareie com “Parear Novos Rastreadores”.',
-  'troubleshoot.recheck': 'Verificar novamente'
+  'troubleshoot.recheck': 'Verificar novamente',
+  'receiver.update.title': 'Atualizar Firmware do Receptor',
+  'receiver.update.searching': 'Procurando o seu receptor…',
+  'receiver.update.choose': 'Mais de um receptor encontrado — escolha um:',
+  'receiver.update.use': 'Usar este receptor',
+  'receiver.update.reading': 'Lendo o firmware do receptor…',
+  'receiver.update.receiverfw': 'Firmware do receptor',
+  'receiver.update.unknownfw': 'Desconhecido',
+  'receiver.update.status': 'Compatibilidade de firmware',
+  'receiver.update.uptodate': 'Atualizado com os seus rastreadores',
+  'receiver.update.mismatch': 'Incompatível — o receptor deve ser atualizado',
+  'receiver.update.cantcompare':
+    'Não foi possível comparar — ligue um rastreador para ver o firmware e tente novamente.',
+  'receiver.update.mismatch.detail': 'Build do receptor {receiver}, build dos rastreadores {trackers}.',
+  'receiver.update.method': 'Método de atualização:',
+  'receiver.update.method.uf2': 'Unidade UF2 (maioria dos dongles)',
+  'receiver.update.method.dfu': 'Hex / DFU (HolyIOT)',
+  'receiver.update.noasset': 'Ainda não há um arquivo de firmware compatível na última versão.',
+  'receiver.update.nonrfutil':
+    'A ferramenta de flash hex/DFU (nrfutil) ainda não está incluída nesta build, então este receptor não pode ser atualizado automaticamente.',
+  'receiver.update.ack': 'Entendo que atualizar pode danificar o receptor e aceito o risco.',
+  'receiver.update.flash': 'Atualizar receptor',
+  'receiver.update.flashing': 'Atualizando…',
+  'receiver.update.dontunplug': 'Não desconecte o receptor até terminar.',
+  'receiver.update.nodrive':
+    'O receptor não apareceu como unidade. Verifique se entrou no modo de atualização e tente novamente.',
+
+  'links.slimevrDiscord': 'Discord SlimeVR'
 }

@@ -67,11 +67,13 @@ function prettyBodyPart(part: BodyPart): string | undefined {
   if (!part) return undefined
   const name = BodyPart[part]
   if (!name) return undefined
-  return name
+  const pretty = name
     .toLowerCase()
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
+  // Use VYRO's terminology: thigh / ankle rather than upper/lower leg.
+  return pretty.replace('Upper Leg', 'Thigh').replace('Lower Leg', 'Ankle')
 }
 
 /**

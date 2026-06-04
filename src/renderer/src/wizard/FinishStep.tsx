@@ -17,6 +17,7 @@ export function FinishStep() {
     { label: t('links.docs'), url: LINKS.docs },
     { label: t('links.firmware'), url: LINKS.firmwareRepo },
     { label: t('links.discord'), url: LINKS.discord },
+    { label: t('links.slimevrDiscord'), url: LINKS.slimevrDiscord },
     { label: t('links.store'), url: LINKS.store }
   ]
 

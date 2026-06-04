@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Api, SlimeVrLiveState, AppSettings, FlashRequest, PairingEvent } from '@shared/types'
+import type {
+  Api,
+  SlimeVrLiveState,
+  AppSettings,
+  FlashRequest,
+  PairingEvent,
+  ReceiverDfuRequest
+} from '@shared/types'
 
 const api: Api = {
   system: {
@@ -29,14 +36,19 @@ const api: Api = {
       const listener = (_e: unknown, event: PairingEvent) => cb(event)
       ipcRenderer.on('receiver:pairing-event', listener)
       return () => ipcRenderer.removeListener('receiver:pairing-event', listener)
-    }
+    },
+    readInfo: (path: string) => ipcRenderer.invoke('receiver:read-info', path),
+    enterDfu: (path: string) => ipcRenderer.invoke('receiver:enter-dfu', path)
   },
   firmware: {
     getCatalog: () => ipcRenderer.invoke('firmware:get-catalog'),
     detectBootloaderDrives: () => ipcRenderer.invoke('firmware:detect-drives'),
     autoFlash: (req: FlashRequest) => ipcRenderer.invoke('firmware:auto-flash', req),
     downloadAsset: (assetUrl: string, assetName: string) =>
-      ipcRenderer.invoke('firmware:download-asset', assetUrl, assetName)
+      ipcRenderer.invoke('firmware:download-asset', assetUrl, assetName),
+    nrfutilAvailable: () => ipcRenderer.invoke('firmware:nrfutil-available'),
+    flashReceiverDfu: (req: ReceiverDfuRequest) =>
+      ipcRenderer.invoke('firmware:flash-receiver-dfu', req)
   },
   docs: {
     getPage: (slug: string) => ipcRenderer.invoke('docs:get-page', slug),

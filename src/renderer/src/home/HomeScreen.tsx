@@ -1,7 +1,7 @@
 import { useAppStore } from '../store/useAppStore'
 import { ActionCard } from '../components/ActionCard'
 
-export type HomeAction = 'pair' | 'calibrate' | 'troubleshoot' | 'wizard'
+export type HomeAction = 'pair' | 'calibrate' | 'troubleshoot' | 'receiver' | 'wizard'
 
 export function HomeScreen({ onSelect }: { onSelect: (action: HomeAction) => void }) {
   const t = useAppStore((s) => s.t)
@@ -30,6 +30,12 @@ export function HomeScreen({ onSelect }: { onSelect: (action: HomeAction) => voi
           title={t('home.troubleshoot.title')}
           body={t('home.troubleshoot.body')}
           onClick={() => onSelect('troubleshoot')}
+        />
+        <ActionCard
+          icon="📡"
+          title={t('home.receiver.title')}
+          body={t('home.receiver.body')}
+          onClick={() => onSelect('receiver')}
         />
         <ActionCard
           icon="🧭"

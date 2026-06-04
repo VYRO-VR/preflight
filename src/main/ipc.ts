@@ -3,17 +3,24 @@ import { getSystemInfo } from './services/system'
 import { getSteamVrInfo } from './services/steamvr'
 import { SlimeVrClient, getSlimeVrInstall } from './services/slimevr'
 import { detectReceiver } from './services/usb'
-import { ReceiverPairingClient, listReceivers } from './services/receiver-serial'
+import {
+  ReceiverPairingClient,
+  listReceivers,
+  readReceiverInfo,
+  enterReceiverDfu
+} from './services/receiver-serial'
 import {
   getFirmwareCatalog,
   detectBootloaderDrives,
   autoFlash,
-  downloadAsset
+  downloadAsset,
+  flashReceiverDfu
 } from './services/firmware'
+import { nrfutilAvailable } from './services/nrfutil'
 import { getDocPage, openExternal } from './services/docs'
 import { exportDiagnostics } from './services/diagnostics'
 import { getSettings, setSettings } from './services/settings'
-import type { AppSettings, FlashRequest } from '@shared/types'
+import type { AppSettings, FlashRequest, ReceiverDfuRequest } from '@shared/types'
 
 /**
  * Registers all IPC handlers. A single long-lived SlimeVrClient streams live
@@ -42,12 +49,18 @@ export function registerIpc(win: BrowserWindow): SlimeVrClient {
   ipcMain.handle('receiver:list', () => listReceivers())
   ipcMain.handle('receiver:start-pairing', (_e, path: string) => receiver.startPairing(path))
   ipcMain.handle('receiver:stop-pairing', () => receiver.stopPairing())
+  ipcMain.handle('receiver:read-info', (_e, path: string) => readReceiverInfo(path))
+  ipcMain.handle('receiver:enter-dfu', (_e, path: string) => enterReceiverDfu(path))
 
   ipcMain.handle('firmware:get-catalog', () => getFirmwareCatalog())
   ipcMain.handle('firmware:detect-drives', () => detectBootloaderDrives())
   ipcMain.handle('firmware:auto-flash', (_e, req: FlashRequest) => autoFlash(req))
   ipcMain.handle('firmware:download-asset', (_e, url: string, name: string) =>
     downloadAsset(url, name)
+  )
+  ipcMain.handle('firmware:nrfutil-available', () => nrfutilAvailable())
+  ipcMain.handle('firmware:flash-receiver-dfu', (_e, req: ReceiverDfuRequest) =>
+    flashReceiverDfu(req)
   )
 
   ipcMain.handle('docs:get-page', (_e, slug: string) => getDocPage(slug))

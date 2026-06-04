@@ -1,8 +1,8 @@
 import { EventEmitter } from 'events'
 import { SerialPort } from 'serialport'
 import { RECEIVER_SERIAL, RECEIVER_USB_IDS } from '@shared/config'
-import type { PairingEvent, ReceiverPort } from '@shared/types'
-import { PairingParser } from './receiver-protocol'
+import type { PairingEvent, ReceiverInfo, ReceiverPort } from '@shared/types'
+import { PairingParser, parseReceiverInfo } from './receiver-protocol'
 
 /** Parse a hex USB id ("1209", "0x1209", "520F") to a number for comparison. */
 function hex(value?: string): number | null {
@@ -14,7 +14,8 @@ function hex(value?: string): number | null {
 const KNOWN_IDS = RECEIVER_USB_IDS.map((id) => ({
   vendorId: hex(id.vendorId),
   productId: hex(id.productId),
-  label: id.label
+  label: id.label,
+  flashMethod: id.flashMethod
 }))
 
 /**
@@ -34,10 +35,51 @@ export async function listReceivers(): Promise<ReceiverPort[]> {
       path: p.path,
       label: `${known.label} (${p.path})`,
       vendorId: p.vendorId,
-      productId: p.productId
+      productId: p.productId,
+      flashMethod: known.flashMethod
     })
   }
   return out
+}
+
+/** Open the port briefly, run a command, and collect console output. */
+async function withPort<T>(
+  path: string,
+  fn: (port: SerialPort, collected: () => string) => Promise<T>
+): Promise<T> {
+  const port = new SerialPort({ path, baudRate: RECEIVER_SERIAL.baudRate, autoOpen: false })
+  let buffer = ''
+  port.on('data', (buf: Buffer) => (buffer += buf.toString('utf-8')))
+  await new Promise<void>((resolve, reject) => port.open((err) => (err ? reject(err) : resolve())))
+  try {
+    return await fn(port, () => buffer)
+  } finally {
+    if (port.isOpen) await new Promise<void>((resolve) => port.close(() => resolve()))
+  }
+}
+
+/** Ask the receiver for its firmware info over the serial console. */
+export async function readReceiverInfo(path: string): Promise<ReceiverInfo> {
+  return withPort(path, async (port, collected) => {
+    port.write(RECEIVER_SERIAL.versionCmd)
+    await delay(1500)
+    return parseReceiverInfo(collected())
+  })
+}
+
+/** Reboot the receiver into its DFU bootloader. */
+export async function enterReceiverDfu(path: string): Promise<void> {
+  await withPort(path, async (port) => {
+    await new Promise<void>((resolve) =>
+      port.write(RECEIVER_SERIAL.dfuCmd, () => port.drain(() => resolve()))
+    )
+    // Give the device a moment to act on the command before the port closes.
+    await delay(300)
+  })
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 /**

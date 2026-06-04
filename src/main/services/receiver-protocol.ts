@@ -2,8 +2,8 @@
 // from `receiver-serial.ts` (which owns the native serialport I/O) so the
 // protocol can be unit-tested in plain Node without opening a real port.
 
-import { RECEIVER_SERIAL } from '@shared/config'
-import type { PairingEvent } from '@shared/types'
+import { RECEIVER_SERIAL, FIRMWARE_BUILD_DATE_REGEX } from '@shared/config'
+import type { PairingEvent, ReceiverInfo } from '@shared/types'
 
 /**
  * Line-buffers raw serial text and turns completed lines into pairing events.
@@ -31,4 +31,15 @@ export function parseLine(line: string): PairingEvent {
   const m = RECEIVER_SERIAL.addedDeviceRegex.exec(line)
   if (m) return { type: 'paired', id: m[1], address: m[2], line }
   return { type: 'log', line }
+}
+
+/**
+ * Parse the receiver's `version` console output into firmware info. Pulls the
+ * version token and a build-date token (if the firmware embeds one) out of the
+ * raw text so it can be compared against the trackers.
+ */
+export function parseReceiverInfo(raw: string): ReceiverInfo {
+  const version = RECEIVER_SERIAL.versionRegex.exec(raw)?.[1]
+  const buildDate = FIRMWARE_BUILD_DATE_REGEX.exec(raw)?.[0]
+  return { firmwareVersion: version, buildDate, raw }
 }
