@@ -24,7 +24,7 @@ jobs:
       - run: npx electron-builder --win --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: vyro-vr-configurator-windows
+          name: preflight-windows
           path: |
             release/*.exe
           if-no-files-found: error

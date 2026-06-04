@@ -1,5 +1,5 @@
 export const en = {
-  'app.title': 'VYRO VR Configurator',
+  'app.title': 'VYRO VR Preflight',
   'app.subtitle': 'Get your IBIS trackers set up in minutes.',
 
   'nav.back': 'Back',

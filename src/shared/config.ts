@@ -1,11 +1,11 @@
 // Single source of truth for hardware + service constants and links.
 // Hardware details and docs change often — edit this file (no app-logic
-// changes needed) to keep the configurator current. Values marked TODO
+// changes needed) to keep Preflight current. Values marked TODO
 // must be confirmed against real hardware before release.
 
 import type { ProductDef } from './types'
 
-export const APP_NAME = 'VYRO VR Configurator'
+export const APP_NAME = 'VYRO VR Preflight'
 
 export const PRODUCTS: ProductDef[] = [
   {

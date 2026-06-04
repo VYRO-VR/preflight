@@ -1,5 +1,5 @@
-appId: com.vyrovr.configurator
-productName: VYRO VR Configurator
+appId: com.vyrovr.preflight
+productName: VYRO VR Preflight
 copyright: Copyright © 2026 VYRO VR
 directories:
   buildResources: build
@@ -38,9 +38,9 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: VYRO VR Configurator
+  shortcutName: VYRO VR Preflight
 publish:
   provider: github
   owner: vyro-vr
-  repo: vyro-vr-configurator
+  repo: preflight
   releaseType: draft
