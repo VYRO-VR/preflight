@@ -1,6 +1,6 @@
 // Partial Portuguese translation — falls back to English for missing keys.
 export const pt: Record<string, string> = {
-  'app.title': 'Configurador VYRO VR',
+  'app.title': 'VYRO VR Preflight',
   'app.subtitle': 'Configure seus rastreadores IBIS em minutos.',
 
   'nav.back': 'Voltar',

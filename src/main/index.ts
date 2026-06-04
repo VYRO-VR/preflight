@@ -12,7 +12,7 @@ function createWindow(): BrowserWindow {
     show: false,
     backgroundColor: '#0e1118',
     autoHideMenuBar: true,
-    title: 'VYRO VR Configurator',
+    title: 'VYRO VR Preflight',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

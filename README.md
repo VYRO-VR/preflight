@@ -1,4 +1,4 @@
-# VYRO VR Configurator
+# VYRO VR Preflight
 
 A Windows desktop app that guides VYRO VR customers through setting up their **IBIS**
 full-body trackers — a step-by-step wizard that checks their PC, detects the USB receiver
