@@ -1,0 +1,59 @@
+name: Release on merge to main
+
+# Every merge to main bumps the patch version, commits it back, tags it, and
+# publishes a Windows GitHub Release with the installer attached.
+#
+# Notes:
+# - The version-bump commit and tag are pushed with GITHUB_TOKEN, which by
+#   design does NOT re-trigger workflows, so this never loops. The `if` guard
+#   below is a second safety net in case a PAT is ever used instead.
+# - Requires main to allow pushes from github-actions[bot] (if branch
+#   protection blocks direct pushes, grant the bot a bypass or use a PAT).
+on:
+  push:
+    branches: [main]
+
+# Never let two releases run at once (e.g. two quick merges).
+concurrency:
+  group: release-on-merge
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Skip the auto-generated bump commit so we don't release twice.
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Bump patch version
+        id: bump
+        shell: bash
+        run: echo "version=$(npm version patch --no-git-tag-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Commit, tag, and push the bump
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(release): ${{ steps.bump.outputs.version }} [skip ci]"
+          git tag "${{ steps.bump.outputs.version }}"
+          git push origin HEAD:main
+          git push origin "${{ steps.bump.outputs.version }}"
+
+      - run: npm run build
+
+      - name: Build & publish Windows release
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Code signing (optional): provide a cert to avoid SmartScreen warnings.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
