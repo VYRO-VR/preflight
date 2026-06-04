@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type {
   FirmwareCatalog,
   FirmwareMatch,
+  FirmwareAsset,
   ReceiverFlashMethod,
   ReceiverInfo,
   ReceiverPort,
@@ -13,15 +14,16 @@ import { FlowShell } from '../components/FlowShell'
 import { Button } from '../components/Button'
 import { StatusBadge } from '../components/StatusBadge'
 import { CheckRow } from '../components/CheckRow'
+import { FirmwarePicker } from '../components/FirmwarePicker'
 
 type Phase = 'connecting' | 'choosing' | 'none' | 'reading' | 'ready' | 'flashing' | 'result'
 
 const DRIVE_POLL_MS = 2000
 const DRIVE_TIMEOUT_MS = 40000
 
-function assetFor(catalog: FirmwareCatalog | null, method: ReceiverFlashMethod) {
-  const ext = method === 'dfu-zip' ? '.zip' : '.uf2'
-  return catalog?.recommended?.assets.find((a) => a.name.toLowerCase().endsWith(ext))
+// .uf2 receivers flash by drive-copy; .hex/.zip go through nrfutil (DFU).
+function methodForAsset(asset: FirmwareAsset | undefined): ReceiverFlashMethod {
+  return asset && /\.uf2$/i.test(asset.name) ? 'uf2' : 'dfu-zip'
 }
 
 export function ReceiverUpdateFlow({ onExit }: { onExit: () => void }) {
@@ -34,7 +36,7 @@ export function ReceiverUpdateFlow({ onExit }: { onExit: () => void }) {
   const [info, setInfo] = useState<ReceiverInfo | null>(null)
   const [match, setMatch] = useState<FirmwareMatch | null>(null)
   const [catalog, setCatalog] = useState<FirmwareCatalog | null>(null)
-  const [method, setMethod] = useState<ReceiverFlashMethod>('uf2')
+  const [asset, setAsset] = useState<FirmwareAsset | undefined>()
   const [nrfutilOk, setNrfutilOk] = useState(true)
   const [acknowledged, setAcknowledged] = useState(false)
   const [progress, setProgress] = useState('')
@@ -42,7 +44,6 @@ export function ReceiverUpdateFlow({ onExit }: { onExit: () => void }) {
 
   const readInfo = async (port: ReceiverPort): Promise<void> => {
     setSelected(port)
-    setMethod(port.flashMethod)
     setPhase('reading')
     const received = await window.api.receiver.readInfo(port.path)
     setInfo(received)
@@ -80,7 +81,7 @@ export function ReceiverUpdateFlow({ onExit }: { onExit: () => void }) {
   }
 
   const update = async (): Promise<void> => {
-    const asset = assetFor(catalog, method)
+    const method = methodForAsset(asset)
     if (!selected || !asset) return
     setPhase('flashing')
     setResult(null)
@@ -110,7 +111,7 @@ export function ReceiverUpdateFlow({ onExit }: { onExit: () => void }) {
     setPhase('result')
   }
 
-  const asset = assetFor(catalog, method)
+  const method = methodForAsset(asset)
   const canUpdate = Boolean(asset) && (method !== 'dfu-zip' || nrfutilOk)
 
   return (
@@ -185,18 +186,14 @@ export function ReceiverUpdateFlow({ onExit }: { onExit: () => void }) {
                 {t('step.firmware.warning')}
               </div>
 
-              {/* Method override (auto-detected, but the user can correct it). */}
-              <label className="flex items-center gap-2 text-sm text-slate-300">
-                {t('receiver.update.method')}
-                <select
-                  value={method}
-                  onChange={(e) => setMethod(e.target.value as ReceiverFlashMethod)}
-                  className="rounded border border-surface-border bg-surface px-2 py-1 text-xs text-slate-200"
-                >
-                  <option value="uf2">{t('receiver.update.method.uf2')}</option>
-                  <option value="dfu-zip">{t('receiver.update.method.dfu')}</option>
-                </select>
-              </label>
+              {/* Pick the receiver board + options → exact file. The flash
+                  method (UF2 drive vs hex/DFU) follows the chosen file's type. */}
+              <FirmwarePicker
+                assets={catalog?.recommended?.assets ?? []}
+                kind="receiver"
+                detectFrom={info?.raw}
+                onChange={(a) => setAsset(a)}
+              />
 
               {!asset && <p className="text-sm text-slate-500">{t('receiver.update.noasset')}</p>}
               {method === 'dfu-zip' && !nrfutilOk && (

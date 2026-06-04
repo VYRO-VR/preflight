@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { DFU_PRESSES, LINKS } from '@shared/config'
-import type { FirmwareCatalog, BootloaderDrive, FlashResult } from '@shared/types'
+import type { FirmwareCatalog, FirmwareAsset, BootloaderDrive, FlashResult } from '@shared/types'
 import { useAppStore } from '../store/useAppStore'
 import { StepShell } from '../components/StepShell'
 import { Button } from '../components/Button'
+import { FirmwarePicker } from '../components/FirmwarePicker'
 
 const dfuPresses = DFU_PRESSES
 
@@ -11,6 +12,7 @@ export function FirmwareStep() {
   const t = useAppStore((s) => s.t)
   const live = useAppStore((s) => s.liveState)
   const [catalog, setCatalog] = useState<FirmwareCatalog | null>(null)
+  const [asset, setAsset] = useState<FirmwareAsset | undefined>()
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
   const [drives, setDrives] = useState<BootloaderDrive[]>([])
@@ -30,7 +32,15 @@ export function FirmwareStep() {
   }, [showAdvanced])
 
   const recommended = catalog?.recommended
-  const asset = recommended?.assets[0]
+  // Suggest a board from whatever firmware the live trackers report.
+  const detectFrom = useMemo(
+    () =>
+      live.trackers
+        .map((tr) => tr.firmwareVersion)
+        .filter(Boolean)
+        .join(' '),
+    [live.trackers]
+  )
 
   const open = (url: string) => window.api.docs.openExternal(url)
 
@@ -77,18 +87,26 @@ export function FirmwareStep() {
             )}
           </div>
 
+          {/* Pick the board + options → exact file */}
+          <FirmwarePicker
+            assets={recommended?.assets ?? []}
+            kind="tracker"
+            detectFrom={detectFrom}
+            onChange={(a) => setAsset(a)}
+          />
+
           {/* Guided (default) path */}
           <div className="space-y-2 rounded-lg border border-surface-border bg-surface-raised p-4">
             <div className="text-sm font-semibold text-slate-100">{t('step.firmware.guided')}</div>
             <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-300">
               <li>Connect the tracker to your PC with a data USB cable.</li>
               <li>Press the button {dfuPresses}× to enter DFU mode (a removable drive appears).</li>
-              <li>Download the recommended firmware file below.</li>
+              <li>Download the firmware file you selected above.</li>
               <li>Copy the .uf2 onto the tracker drive — it reboots automatically.</li>
             </ol>
             {asset && (
               <Button variant="primary" onClick={() => open(asset.downloadUrl)}>
-                Download {asset.name}
+                {t('fw.pick.download', { name: asset.name })}
               </Button>
             )}
           </div>

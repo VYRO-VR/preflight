@@ -6,10 +6,11 @@ import { promisify } from 'util'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import {
-  FIRMWARE_RELEASES_API,
+  FIRMWARE_RELEASE_API,
   FIRMWARE_RECOMMENDED_MARKER,
   BOOTLOADER_VOLUME_LABELS
 } from '@shared/config'
+import { withParsed } from '@shared/firmware-naming'
 import type {
   FirmwareCatalog,
   FirmwareRelease,
@@ -47,12 +48,12 @@ function mapRelease(r: GithubRelease): FirmwareRelease {
     notes,
     prerelease: r.prerelease,
     recommended: notes.toLowerCase().includes(FIRMWARE_RECOMMENDED_MARKER.toLowerCase()),
-    // Keep both flashable asset types. .uf2 sorts first so existing callers that
-    // grab assets[0] for the UF2 tracker flow keep working; the receiver flow
-    // selects an asset by method via pickAsset().
+    // Keep every flashable asset type (.uf2 drag-drop, .hex/.zip via nrfutil)
+    // and decode each filename into structured fields for the picker. .uf2 sorts
+    // first so existing callers that grab assets[0] keep working.
     assets: (r.assets || [])
-      .filter((a) => /\.(uf2|zip)$/i.test(a.name))
-      .map((a) => ({ name: a.name, downloadUrl: a.browser_download_url, sizeBytes: a.size }))
+      .filter((a) => /\.(uf2|hex|zip)$/i.test(a.name))
+      .map((a) => withParsed({ name: a.name, downloadUrl: a.browser_download_url, sizeBytes: a.size }))
       .sort((a, b) => Number(b.name.toLowerCase().endsWith('.uf2')) - Number(a.name.toLowerCase().endsWith('.uf2')))
   }
 }
@@ -79,37 +80,38 @@ export function pickRecommended(releases: FirmwareRelease[]): FirmwareRelease | 
 
 export async function getFirmwareCatalog(): Promise<FirmwareCatalog> {
   try {
-    const res = await fetch(FIRMWARE_RELEASES_API, {
+    const res = await fetch(FIRMWARE_RELEASE_API, {
       headers: { Accept: 'application/vnd.github+json' }
     })
     if (res.status === 404) {
       return {
         configured: false,
-        source: FIRMWARE_RELEASES_API,
+        source: FIRMWARE_RELEASE_API,
         releases: [],
-        error: 'Firmware repository is not published yet.'
+        error: 'Firmware release is not available yet.'
       }
     }
     if (!res.ok) {
       return {
         configured: false,
-        source: FIRMWARE_RELEASES_API,
+        source: FIRMWARE_RELEASE_API,
         releases: [],
         error: `GitHub returned ${res.status}.`
       }
     }
-    const json = (await res.json()) as GithubRelease[]
-    const releases = json.map(mapRelease)
+    // The CI publishes a single rolling release at the configured tag.
+    const release = mapRelease((await res.json()) as GithubRelease)
+    const releases = [release]
     return {
-      configured: releases.length > 0,
-      source: FIRMWARE_RELEASES_API,
+      configured: release.assets.length > 0,
+      source: FIRMWARE_RELEASE_API,
       recommended: pickRecommended(releases),
       releases
     }
   } catch (err) {
     return {
       configured: false,
-      source: FIRMWARE_RELEASES_API,
+      source: FIRMWARE_RELEASE_API,
       releases: [],
       error: err instanceof Error ? err.message : 'Network error fetching firmware.'
     }
