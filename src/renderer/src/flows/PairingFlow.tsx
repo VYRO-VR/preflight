@@ -82,18 +82,24 @@ export function PairingFlow({ onExit }: { onExit: () => void }) {
     return () => clearTimeout(id)
   }, [phase, paired.length])
 
-  const finish = async (): Promise<void> => {
+  // Always take the receiver out of pairing mode before leaving the flow.
+  // Used by both the "Done" button and the back button so the receiver never
+  // stays in pairing mode after the user navigates away. Awaiting stopPairing
+  // before onExit() also guarantees the exit command is flushed (and the port
+  // released) before the component unmounts, instead of relying on the
+  // fire-and-forget cleanup below.
+  const exit = async (): Promise<void> => {
     await window.api.receiver.stopPairing()
     onExit()
   }
 
   const footer =
     phase === 'pairing' ? (
-      <Button onClick={finish}>{t('pair.done')}</Button>
+      <Button onClick={exit}>{t('pair.done')}</Button>
     ) : undefined
 
   return (
-    <FlowShell title={t('pair.title')} onExit={onExit} footer={footer}>
+    <FlowShell title={t('pair.title')} onExit={exit} footer={footer}>
       {phase === 'connecting' && (
         <Hint status="running" text={t('pair.connect.searching')} />
       )}
