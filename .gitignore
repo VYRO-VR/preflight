@@ -10,3 +10,4 @@ release/
 coverage/
 .vite/
 *.local
+*.tsbuildinfo
