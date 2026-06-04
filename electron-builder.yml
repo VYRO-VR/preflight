@@ -39,6 +39,32 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: VYRO VR Preflight
+mac:
+  category: public.app-category.utilities
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  # Code-signing / notarization: set CSC_LINK + CSC_KEY_PASSWORD (and the
+  # APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID notarization vars)
+  # in CI to enable. Unsigned builds run after a Gatekeeper right-click → Open.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+linux:
+  category: Utility
+  icon: build/icon.png
+  # Required by the .deb target — embedded as the package Maintainer field.
+  maintainer: VYRO VR <support@vyrovr.com>
+  synopsis: Guided setup and firmware helper for VYRO VR IBIS trackers
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
 publish:
   provider: github
   owner: vyro-vr

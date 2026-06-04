@@ -1,8 +1,9 @@
-name: Build Windows Installer (artifact)
+name: Build installers (artifacts)
 
-# Builds the Windows installer and uploads it as a downloadable workflow
-# artifact. This does NOT publish a GitHub Release — use the Release workflow
-# (tag push) for that. Runs on demand, or on pushes to working branches.
+# Builds the Windows, macOS, and Linux installers and uploads them as
+# downloadable workflow artifacts. This does NOT publish a GitHub Release — use
+# the Release workflow (tag push) for that. Runs on demand, or on pushes to
+# working branches.
 on:
   workflow_dispatch:
   push:
@@ -11,21 +12,47 @@ on:
 
 jobs:
   build-installer:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            flag: --win
+            artifact: preflight-windows
+            files: |
+              release/*.exe
+          - os: macos-latest
+            flag: --mac
+            artifact: preflight-macos
+            files: |
+              release/*.dmg
+              release/*.zip
+          - os: ubuntu-latest
+            flag: --linux
+            artifact: preflight-linux
+            files: |
+              release/*.AppImage
+              release/*.deb
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+      # node-gyp (used to rebuild serialport's native binding) imports the
+      # stdlib `distutils`, removed in Python 3.12+. Pin 3.11 so the rebuild
+      # works on runners (notably macOS, which compiles the x64 slice).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - run: npm ci
       - run: npm run build
-      # Build the NSIS installer + portable exe without publishing anywhere.
-      - run: npx electron-builder --win --publish never
+      # Build the installers without publishing anywhere.
+      - run: npx electron-builder ${{ matrix.flag }} --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: preflight-windows
-          path: |
-            release/*.exe
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
           if-no-files-found: error
           retention-days: 30
