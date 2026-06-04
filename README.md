@@ -58,11 +58,28 @@ npm run typecheck    # tsc (node + web projects)
 ## Building
 
 ```bash
-npm run build:win    # produce the Windows NSIS installer + portable build in release/
+npm run build:win    # Windows NSIS installer + portable (.exe)        → release/
+npm run build:mac    # macOS .dmg + .zip (x64 + arm64)                 → release/
+npm run build:linux  # Linux AppImage + .deb (x64)                     → release/
 ```
 
-Code signing is optional but recommended (avoids Windows SmartScreen warnings). Provide
-`CSC_LINK` and `CSC_KEY_PASSWORD` to the release workflow.
+Each platform must be packaged on its own OS (electron-builder can't, for example, build a
+macOS `.dmg` from Linux). CI handles this with a per-OS matrix:
+
+- **Release** (`release.yml`, on `v*` tag push) and **Release on merge** (`release-on-merge.yml`)
+  build and publish all three platforms to the same GitHub Release.
+- **Build installers** (`installer.yml`, on `claude/**` pushes or manual dispatch) uploads the
+  installers as downloadable workflow artifacts without publishing a release.
+
+Code signing is optional but recommended. Provide `CSC_LINK` + `CSC_KEY_PASSWORD` for Windows
+(avoids SmartScreen) and macOS signing; add `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` +
+`APPLE_TEAM_ID` to notarize the macOS build (avoids Gatekeeper warnings). Unsigned builds work
+everywhere — macOS just needs a right-click → **Open** the first time.
+
+> **Platform note:** the cross-platform builds run today, but the deeper hardware-detection
+> steps (USB receiver enumeration, Windows-version checks, drive-letter firmware flashing) are
+> currently Windows-only and degrade gracefully on macOS/Linux. The wizard, docs, live SlimeVR
+> feed, and UF2 firmware path work cross-platform.
 
 ## SlimeVR live feed
 
