@@ -57,6 +57,8 @@ dmg:
 linux:
   category: Utility
   icon: build/icon.png
+  # Required by the .deb target — embedded as the package Maintainer field.
+  maintainer: VYRO VR <support@vyrovr.com>
   synopsis: Guided setup and firmware helper for VYRO VR IBIS trackers
   target:
     - target: AppImage
