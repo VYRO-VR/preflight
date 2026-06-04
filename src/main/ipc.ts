@@ -24,9 +24,12 @@ import type { AppSettings, FlashRequest, ReceiverDfuRequest } from '@shared/type
 
 /**
  * Registers all IPC handlers. A single long-lived SlimeVrClient streams live
- * tracker state to the renderer over the 'slimevr:live-state' channel.
+ * tracker state to the renderer over the 'slimevr:live-state' channel. Returns
+ * the long-lived clients so the app lifecycle can tear them down on quit — in
+ * particular taking the receiver out of pairing mode if the user quits while
+ * the pairing screen is still active.
  */
-export function registerIpc(win: BrowserWindow): SlimeVrClient {
+export function registerIpc(win: BrowserWindow): { slime: SlimeVrClient; receiver: ReceiverPairingClient } {
   const slime = new SlimeVrClient()
   slime.on('state', (state) => {
     if (!win.isDestroyed()) win.webContents.send('slimevr:live-state', state)
@@ -73,5 +76,5 @@ export function registerIpc(win: BrowserWindow): SlimeVrClient {
 
   ipcMain.handle('app:get-version', () => app.getVersion())
 
-  return slime
+  return { slime, receiver }
 }
