@@ -43,4 +43,6 @@ publish:
   provider: github
   owner: vyro-vr
   repo: preflight
-  releaseType: draft
+  # Published (not draft) so a release appears automatically on each merge.
+  # Switch back to `draft` if you'd rather review/publish releases manually.
+  releaseType: release
