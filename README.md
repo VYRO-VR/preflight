@@ -96,4 +96,3 @@ should still be **validated against a running SlimeVR Server**, since that can't
 - Validate the live tracker feed against a real SlimeVR Server (especially the battery scale).
 - Publish releases on `github.com/VYRO-VR/jitingcn-smol-slime-firmware` (the firmware step
   degrades gracefully until then).
-- Add `build/icon.ico`.
