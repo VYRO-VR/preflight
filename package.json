@@ -1,6 +1,6 @@
 {
   "name": "preflight",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Guided setup, configuration checker, and firmware helper for VYRO VR IBIS trackers.",
   "author": "VYRO VR",
   "license": "UNLICENSED",
