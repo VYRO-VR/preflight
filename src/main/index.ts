@@ -83,7 +83,7 @@ function createWindow(splash?: BrowserWindow): BrowserWindow {
 app.whenReady().then(() => {
   const splash = createSplashWindow()
   const win = createWindow(splash)
-  const slime = registerIpc(win)
+  const { slime, receiver } = registerIpc(win)
 
   if (app.isPackaged) {
     initAutoUpdater(win)
@@ -93,7 +93,14 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 
-  app.on('before-quit', () => slime.disconnect())
+  // Tear down long-lived device connections on quit. stopPairing also takes the
+  // receiver out of pairing mode, so quitting while the pairing screen is still
+  // active doesn't strand the receiver in pairing mode (the renderer's own
+  // cleanup can't be relied on to flush during app teardown).
+  app.on('before-quit', () => {
+    slime.disconnect()
+    receiver.stopPairing()
+  })
 })
 
 app.on('window-all-closed', () => {
