@@ -36,12 +36,22 @@ jobs:
           python-version: '3.11'
       - run: npm ci
       - run: npm run build
+      # Azure Trusted Signing (Windows) signs via the Invoke-TrustedSigning
+      # cmdlet from the TrustedSigning PowerShell module, which isn't preinstalled
+      # on the runner. No-op on the mac/linux legs.
+      - name: Install Trusted Signing module (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: Install-Module -Name TrustedSigning -Force -Repository PSGallery
       - run: npx electron-builder ${{ matrix.flag }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Code signing (optional): provide a cert to avoid SmartScreen / Gatekeeper warnings.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Windows code signing via Azure Trusted Signing (removes SmartScreen
+          # warnings). The non-secret signing identity lives in electron-builder.yml;
+          # these three are the CI auth for the signing service principal.
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           # macOS notarization (optional): set these to notarize the mac build.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}

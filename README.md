@@ -72,10 +72,19 @@ macOS `.dmg` from Linux). CI handles this with a per-OS matrix:
 - **Build installers** (`installer.yml`, on `claude/**` pushes or manual dispatch) uploads the
   installers as downloadable workflow artifacts without publishing a release.
 
-Code signing is optional but recommended. Provide `CSC_LINK` + `CSC_KEY_PASSWORD` for Windows
-(avoids SmartScreen) and macOS signing; add `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` +
-`APPLE_TEAM_ID` to notarize the macOS build (avoids Gatekeeper warnings). Unsigned builds work
-everywhere — macOS just needs a right-click → **Open** the first time.
+**Windows code signing** uses [Azure Trusted Signing](https://learn.microsoft.com/azure/trusted-signing/)
+to remove the SmartScreen "unknown publisher" warning. The non-secret signing identity
+(publisher name, endpoint, account, and certificate profile) lives in `electron-builder.yml`
+under `win.azureSignOptions`; CI authenticates with a service principal via three GitHub
+secrets: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`. The release workflows
+install the `TrustedSigning` PowerShell module on the Windows runner automatically. Until the
+`azureSignOptions` placeholders and secrets are filled in, Windows builds ship **unsigned** and
+still trigger SmartScreen.
+
+**macOS** signing/notarization is optional: add `CSC_LINK` + `CSC_KEY_PASSWORD` plus `APPLE_ID`
++ `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID` to sign and notarize (avoids Gatekeeper
+warnings). Unsigned builds work everywhere — macOS just needs a right-click → **Open** the
+first time.
 
 > **Platform note:** the cross-platform builds run today, but the deeper hardware-detection
 > steps (USB receiver enumeration, Windows-version checks, drive-letter firmware flashing) are
