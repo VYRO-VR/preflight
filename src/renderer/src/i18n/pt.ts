@@ -56,6 +56,7 @@ export const pt: Record<string, string> = {
   'home.receiver.body': 'Verifique o receptor e atualize-o para combinar com os rastreadores.',
   'home.wizard.title': 'Guia de Configuração Completo',
   'home.wizard.body': 'Percorra toda a configuração, passo a passo.',
+  'home.more': 'Mais tarefas',
   'nav.home': 'Início',
 
   'pair.title': 'Parear Novos Rastreadores',
