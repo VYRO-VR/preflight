@@ -131,12 +131,23 @@ describe('parseFirmwareName', () => {
     expect(parseFirmwareName('VYRO_VR_Receiver_Fox_Dongle33.uf2')?.board).toBe('Fox Dongle33')
   })
 
-  it('parses VVR-prefixed names and strips a trailing source-commit hash', () => {
+  it('parses VVR-prefixed names and extracts the trailing source-commit hash', () => {
     expect(parseFirmwareName('VVR_Tracker_Mochi_f750a5b.uf2')).toMatchObject({
       board: 'Mochi',
-      boardKey: 'mochi'
+      boardKey: 'mochi',
+      commit: 'f750a5b'
     })
-    expect(parseFirmwareName('VVR_Receiver_Fox_Dongle_2309f8b.uf2')?.board).toBe('Fox Dongle')
+    expect(parseFirmwareName('VVR_Receiver_Fox_Dongle_2309f8b.uf2')).toMatchObject({
+      board: 'Fox Dongle',
+      commit: '2309f8b'
+    })
+    // A hash with no decimal digits and a full-length one are still hashes.
+    expect(parseFirmwareName('VVR_Tracker_Mochi_abcdefa.uf2')?.commit).toBe('abcdefa')
+    expect(
+      parseFirmwareName(`VVR_Tracker_Mochi_${'f750a5b23'.padEnd(40, '0')}.uf2`)?.board
+    ).toBe('Mochi')
+    // Hash-less names still parse, with no commit recorded.
+    expect(parseFirmwareName('VYRO_VR_Tracker_Mochi.uf2')?.commit).toBeUndefined()
     // Numeric board tokens that are not commit hashes survive.
     expect(parseFirmwareName('VVR_Receiver_Holyiot_22046.hex')?.board).toBe('Holyiot 22046')
     expect(parseFirmwareName('VVR_Receiver_Styria_R1.uf2')?.board).toBe('Styria R1')

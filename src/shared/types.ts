@@ -201,6 +201,12 @@ export interface ParsedFirmware {
   /** True for `SW0` builds (alternate button/wake pin). */
   sw0: boolean
   fork: FirmwareFork
+  /**
+   * Source commit the file was built from — VYRO's CI always suffixes it to
+   * the filename (e.g. `VVR_Tracker_Mochi_f750a5b.uf2`). Lowercased;
+   * undefined for hash-less names (SlimeNRF CI, first VYRO release).
+   */
+  commit?: string
   /** File extension without the dot: 'uf2' | 'hex' | 'zip'. */
   ext: string
 }

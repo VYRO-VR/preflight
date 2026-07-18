@@ -2,10 +2,11 @@
 //
 // The firmware CI publishes releases whose assets encode every build option in
 // the filename. VYRO's CI (VYRO-VR/Firmware) names files like
-//   VYRO_VR_Tracker_ProMicro_Default_I2C.uf2
-//   VYRO_VR_Receiver_Holyiot_21017.hex
-//   VVR_Tracker_Mochi_f750a5b.uf2        (optional source-commit suffix)
-// and the upstream SlimeNRF CI names them like
+//   VVR_Tracker_ProMicro_Default_I2C_f750a5b.uf2
+//   VVR_Receiver_Holyiot_21017_2309f8b.hex
+// where the last token is always the source commit the file was built from
+// (also tolerated: a VYRO_VR_ prefix and hash-less names, as in the very first
+// release). The upstream SlimeNRF CI names files like
 //   SlimeNRF_Tracker_TDMA_SW0_NoSleep_SPI_Mag_ProMicro.uf2
 //
 // Parsing strategy: pull every known *option* token out of the name; whatever
@@ -33,10 +34,15 @@ export function parseFirmwareName(name: string): ParsedFirmware | null {
   const ext = m[2].toLowerCase()
 
   const tokens = m[1].split('_')
-  // The CI may suffix the source commit hash (e.g. VVR_Tracker_Mochi_f750a5b.uf2).
-  // Drop it so board keys stay stable across releases.
+  // VYRO's CI always suffixes the source commit hash (e.g.
+  // VVR_Tracker_Mochi_f750a5b.uf2). Pull it out so board keys stay stable
+  // across releases; tolerate hash-less names (SlimeNRF CI, first VYRO release).
+  let commit: string | undefined
   const last = tokens[tokens.length - 1]
-  if (tokens.length > 1 && /^[0-9a-f]{7,12}$/i.test(last) && /\d/.test(last)) tokens.pop()
+  if (tokens.length > 1 && /^[0-9a-f]{7,40}$/i.test(last)) {
+    commit = last.toLowerCase()
+    tokens.pop()
+  }
 
   let kind: FirmwareKind = 'tracker'
   let protocol: FirmwareProtocol = 'standard'
@@ -109,6 +115,7 @@ export function parseFirmwareName(name: string): ParsedFirmware | null {
     bus,
     sw0,
     fork,
+    commit,
     ext
   }
 }
