@@ -161,8 +161,10 @@ export function FirmwareUpdateFlow({ onExit }: { onExit: () => void }) {
   const open = (url: string): void => void window.api.docs.openExternal(url)
 
   const receiverMethod = methodForAsset(receiverAsset)
+  // A raw .hex can't be flashed over USB — the DFU path needs a .zip package.
+  const receiverIsRawHex = Boolean(receiverAsset && /\.hex$/i.test(receiverAsset.name))
   const canUpdateReceiver =
-    Boolean(receiverAsset) && (receiverMethod !== 'dfu-zip' || nrfutilOk)
+    Boolean(receiverAsset) && !receiverIsRawHex && (receiverMethod !== 'dfu-zip' || nrfutilOk)
   const receiverNeedsUpdate = receiverMatch.status !== 'match'
 
   const sectionClass = 'space-y-3 rounded-lg border border-surface-border bg-surface-raised p-4'
@@ -354,7 +356,10 @@ export function FirmwareUpdateFlow({ onExit }: { onExit: () => void }) {
                   {!receiverAsset && (
                     <p className="text-sm text-slate-500">{t('fwupdate.noasset')}</p>
                   )}
-                  {receiverMethod === 'dfu-zip' && !nrfutilOk && (
+                  {receiverIsRawHex && (
+                    <p className="text-sm text-rose-300">{t('fwupdate.hexonly')}</p>
+                  )}
+                  {!receiverIsRawHex && receiverMethod === 'dfu-zip' && !nrfutilOk && (
                     <p className="text-sm text-rose-300">{t('fwupdate.nonrfutil')}</p>
                   )}
 

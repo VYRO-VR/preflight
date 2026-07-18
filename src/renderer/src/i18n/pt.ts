@@ -139,6 +139,8 @@ export const pt: Record<string, string> = {
     'Nenhum rastreador em modo de atualização detectado ainda — pressione o botão {presses} vezes e ele aparecerá aqui.',
   'fwupdate.trackers.flash': 'Gravar em {drive}',
   'fwupdate.noasset': 'Ainda não há um arquivo de firmware compatível na última versão.',
+  'fwupdate.hexonly':
+    'Esta versão traz apenas um .hex bruto para este receptor, que não pode ser gravado via USB. É necessária uma versão com pacote DFU (.zip) — ou um gravador SWD.',
   'fwupdate.nonrfutil':
     'A ferramenta de flash hex/DFU (nrfutil) ainda não está incluída nesta build, então este receptor não pode ser atualizado automaticamente.',
   'fwupdate.ack': 'Entendo que atualizar pode danificar o dispositivo e aceito o risco.',

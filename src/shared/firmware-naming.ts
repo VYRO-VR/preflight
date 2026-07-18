@@ -77,13 +77,14 @@ export function candidatesFor(
 }
 
 /**
- * Resolve a board to its firmware file. A board normally has exactly one
- * asset; if a release ever ships several formats for one board, .uf2 (drag &
- * drop) wins over .hex/.zip (programmer needed).
+ * Resolve a board to its firmware file. When a release ships several formats
+ * for one board, prefer the ones the app can flash itself: .uf2 (drag & drop
+ * onto the bootloader drive), then .zip (Secure DFU package via nrfutil), then
+ * .hex last — a raw hex needs an SWD programmer.
  */
 export function resolveFirmware(candidates: FirmwareAsset[]): FirmwareAsset | undefined {
   const rank = (a: FirmwareAsset): number =>
-    a.parsed?.ext === 'uf2' ? 0 : a.parsed?.ext === 'hex' ? 1 : 2
+    a.parsed?.ext === 'uf2' ? 0 : a.parsed?.ext === 'zip' ? 1 : 2
   return [...candidates].sort((a, b) => rank(a) - rank(b))[0]
 }
 
@@ -101,22 +102,35 @@ export function releaseCommitFor(assets: FirmwareAsset[], kind: FirmwareKind): s
 
 /**
  * Best-effort: guess a board key from a free-form string (a tracker's reported
- * firmware, or the receiver's `Target: foxdongle_uf2/nrf52840` line) by
- * looking for a known board's tokens. Returns undefined when nothing matches.
+ * firmware, or the receiver's `Target: foxdongle33_uf2/nrf52833` line).
+ * Returns undefined when nothing matches confidently.
  */
 export function guessBoardKey(
   text: string | undefined,
   boards: BoardOption[]
 ): string | undefined {
   if (!text) return undefined
-  // Squash separators so "Fox Dongle" matches "foxdongle_uf2/nrf52840".
-  const hay = text.toLowerCase().replace(/[^a-z0-9]+/g, '')
-  // Prefer the most specific (longest label) match, so a variant board wins
-  // over its base name.
+  const squash = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '')
+
+  // A Zephyr board target (`foxdongle33_uf2/nrf52833`) names the board
+  // exactly: the segment before the SoC, minus the transport suffix. Trust it
+  // over any fuzzy matching — and if no asset matches it exactly, suggest
+  // nothing rather than risk the wrong variant (e.g. the nRF52840 Fox Dongle
+  // build for the nRF52833 Fox Dongle33).
+  const target = /([a-z0-9_]+?)(?:_uf2|_dfu)?\/nrf[a-z0-9]*/i.exec(text)
+  if (target) {
+    const wanted = squash(target[1])
+    return boards.find((b) => squash(b.key) === wanted)?.key
+  }
+
+  // Free-form text (tracker firmware strings): squash separators so
+  // "Fox Dongle" matches "foxdongle", and prefer the most specific (longest
+  // label) match so a variant board wins over its base name.
+  const hay = squash(text)
   const ranked = [...boards].sort((a, b) => b.label.length - a.label.length)
   for (const b of ranked) {
     const tokens = b.label.toLowerCase().split(' ')
-    if (tokens.every((tok) => hay.includes(tok.replace(/[^a-z0-9]+/g, '')))) return b.key
+    if (tokens.every((tok) => hay.includes(squash(tok)))) return b.key
   }
   return undefined
 }

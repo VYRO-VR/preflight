@@ -233,6 +233,14 @@ export async function autoFlash(req: FlashRequest): Promise<FlashResult> {
  * uses, so no external app is needed.
  */
 export async function flashReceiverDfu(req: ReceiverDfuRequest): Promise<FlashResult> {
+  // nrfutil flashes Secure DFU .zip packages; a raw .hex would fail deep in
+  // nrfutil with a cryptic "invalid Zip archive" — refuse it up front.
+  if (!/\.zip$/i.test(req.assetName)) {
+    return {
+      ok: false,
+      message: `${req.assetName} is not a DFU package (.zip). A raw .hex can only be flashed with an SWD programmer — use a release that ships a .zip for this board.`
+    }
+  }
   if (!(await nrfutilAvailable())) {
     return {
       ok: false,
