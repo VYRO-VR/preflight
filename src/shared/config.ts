@@ -67,13 +67,12 @@ export const SLIMEVR_WS_URL = 'ws://127.0.0.1:21110'
 // Firmware source — the VYRO VR firmware CI (github.com/VYRO-VR/Firmware). It
 // builds every board VYRO sells and publishes dated releases whose assets are
 // named `VVR_<Receiver|Tracker>_<Board>_<commit>.<uf2|hex>` (see
-// @shared/firmware-naming). The app always reads the *latest* release; it
-// degrades gracefully if GitHub can't be reached. To pin a different repo,
-// change these lines.
+// @shared/firmware-naming). The app reads the releases list (newest first) and
+// offers the newest stable release, falling back to the newest prerelease; it
+// degrades gracefully while there are no releases or GitHub can't be reached.
+// To pin a different repo, change these two lines.
 export const FIRMWARE_REPO = { owner: 'VYRO-VR', repo: 'Firmware' }
 export const FIRMWARE_RELEASES_API = `https://api.github.com/repos/${FIRMWARE_REPO.owner}/${FIRMWARE_REPO.repo}/releases`
-// The release the pickers read from — always the newest published build.
-export const FIRMWARE_RELEASE_API = `${FIRMWARE_RELEASES_API}/latest`
 
 // Tracker button reference with VYRO LED feedback colors.
 export const BUTTON_ACTIONS: { input: string; action: string; led: string; detail: string }[] = [

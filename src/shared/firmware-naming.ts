@@ -11,15 +11,16 @@
 // sleep behaviour, …) is baked into the build — so picking firmware is just
 // picking the board. The trailing token is the short commit of the firmware
 // source repository the file was built from, which is what "is this device up
-// to date?" compares against.
+// to date?" compares against. Also tolerated: the `VYRO_VR_` prefix and
+// hash-less names used by the very first release.
 
 import type { FirmwareAsset, FirmwareKind, ParsedFirmware } from './types'
 
-const COMMIT_TOKEN = /^[0-9a-f]{6,12}$/i
+const COMMIT_TOKEN = /^[0-9a-f]{7,40}$/i
 
 /** Parse a VYRO firmware asset filename into structured fields, or null. */
 export function parseFirmwareName(name: string): ParsedFirmware | null {
-  const m = /^VVR_(Receiver|Tracker)_(.+)\.(uf2|hex|zip)$/i.exec(name)
+  const m = /^(?:VVR|VYRO_VR)_(Receiver|Tracker)_(.+)\.(uf2|hex|zip)$/i.exec(name)
   if (!m) return null
   const kind: FirmwareKind = m[1].toLowerCase() === 'receiver' ? 'receiver' : 'tracker'
   const ext = m[3].toLowerCase()

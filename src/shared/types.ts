@@ -191,7 +191,10 @@ export interface ParsedFirmware {
   board: string
   /** Normalized board key for grouping/equality, e.g. "fox_dongle". */
   boardKey: string
-  /** Short commit hash of the firmware source this file was built from. */
+  /**
+   * Short commit hash of the firmware source this file was built from
+   * (lowercased). Undefined for hash-less names, as in the first release.
+   */
   commit?: string
   /** File extension without the dot: 'uf2' | 'hex' | 'zip'. */
   ext: string
