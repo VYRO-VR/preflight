@@ -95,10 +95,62 @@ describe('parseFirmwareName', () => {
     })
   })
 
-  it('rejects non-SlimeNRF names', () => {
+  it('rejects unrecognized names', () => {
     expect(parseFirmwareName('random.uf2')).toBeNull()
     expect(parseFirmwareName('SlimeNRF_Tracker.uf2')).toBeNull() // no board left
     expect(parseFirmwareName('notes.txt')).toBeNull()
+    expect(parseFirmwareName('build-info.json')).toBeNull()
+  })
+
+  // Names published by the VYRO-VR/Firmware CI (release v2026.07.18-1532).
+  it('parses VYRO_VR-prefixed names', () => {
+    expect(parseFirmwareName('VYRO_VR_Tracker_Mochi.uf2')).toMatchObject({
+      kind: 'tracker',
+      board: 'Mochi',
+      boardKey: 'mochi',
+      ext: 'uf2'
+    })
+    expect(parseFirmwareName('VYRO_VR_Tracker_ProMicro_Default_I2C.uf2')).toMatchObject({
+      kind: 'tracker',
+      board: 'ProMicro Default',
+      boardKey: 'promicro_default',
+      bus: 'i2c'
+    })
+    expect(parseFirmwareName('VYRO_VR_Tracker_ProMicro_Stacked_SPI.uf2')).toMatchObject({
+      board: 'ProMicro Stacked',
+      bus: 'spi'
+    })
+    expect(parseFirmwareName('VYRO_VR_Tracker_ProMicro_Chrysalis.uf2')?.board).toBe(
+      'ProMicro Chrysalis'
+    )
+    expect(parseFirmwareName('VYRO_VR_Receiver_Holyiot_21017.hex')).toMatchObject({
+      kind: 'receiver',
+      board: 'Holyiot 21017',
+      ext: 'hex'
+    })
+    expect(parseFirmwareName('VYRO_VR_Receiver_Fox_Dongle33.uf2')?.board).toBe('Fox Dongle33')
+  })
+
+  it('parses VVR-prefixed names and extracts the trailing source-commit hash', () => {
+    expect(parseFirmwareName('VVR_Tracker_Mochi_f750a5b.uf2')).toMatchObject({
+      board: 'Mochi',
+      boardKey: 'mochi',
+      commit: 'f750a5b'
+    })
+    expect(parseFirmwareName('VVR_Receiver_Fox_Dongle_2309f8b.uf2')).toMatchObject({
+      board: 'Fox Dongle',
+      commit: '2309f8b'
+    })
+    // A hash with no decimal digits and a full-length one are still hashes.
+    expect(parseFirmwareName('VVR_Tracker_Mochi_abcdefa.uf2')?.commit).toBe('abcdefa')
+    expect(
+      parseFirmwareName(`VVR_Tracker_Mochi_${'f750a5b23'.padEnd(40, '0')}.uf2`)?.board
+    ).toBe('Mochi')
+    // Hash-less names still parse, with no commit recorded.
+    expect(parseFirmwareName('VYRO_VR_Tracker_Mochi.uf2')?.commit).toBeUndefined()
+    // Numeric board tokens that are not commit hashes survive.
+    expect(parseFirmwareName('VVR_Receiver_Holyiot_22046.hex')?.board).toBe('Holyiot 22046')
+    expect(parseFirmwareName('VVR_Receiver_Styria_R1.uf2')?.board).toBe('Styria R1')
   })
 })
 

@@ -163,17 +163,18 @@ export interface FirmwareAsset {
   name: string
   downloadUrl: string
   sizeBytes: number
-  /** Structured fields decoded from the SlimeNRF filename, when it matches. */
+  /** Structured fields decoded from the firmware filename, when it matches. */
   parsed?: ParsedFirmware
 }
 
 // ---------------------------------------------------------------------------
-// Firmware filename taxonomy (SlimeNRF CI naming scheme)
+// Firmware filename taxonomy (VYRO / SlimeNRF CI naming scheme)
 //
-// Asset names look like `SlimeNRF_Tracker_TDMA_SW0_NoSleep_SPI_Mag_ProMicro.uf2`
-// or `SlimeNRF_Holyiot_Dongle_TDMA_Receiver.hex`. Every option is an optional
-// token; whatever tokens are left after pulling the known options out form the
-// board name. See `@shared/firmware-naming`.
+// Asset names look like `VYRO_VR_Tracker_ProMicro_Default_I2C.uf2`,
+// `VYRO_VR_Receiver_Holyiot_21017.hex`, or (upstream SlimeNRF CI)
+// `SlimeNRF_Tracker_TDMA_SW0_NoSleep_SPI_Mag_ProMicro.uf2`. Every option is an
+// optional token; whatever tokens are left after pulling the known options out
+// form the board name. See `@shared/firmware-naming`.
 // ---------------------------------------------------------------------------
 
 export type FirmwareKind = 'tracker' | 'receiver'
@@ -200,6 +201,12 @@ export interface ParsedFirmware {
   /** True for `SW0` builds (alternate button/wake pin). */
   sw0: boolean
   fork: FirmwareFork
+  /**
+   * Source commit the file was built from — VYRO's CI always suffixes it to
+   * the filename (e.g. `VVR_Tracker_Mochi_f750a5b.uf2`). Lowercased;
+   * undefined for hash-less names (SlimeNRF CI, first VYRO release).
+   */
+  commit?: string
   /** File extension without the dot: 'uf2' | 'hex' | 'zip'. */
   ext: string
 }

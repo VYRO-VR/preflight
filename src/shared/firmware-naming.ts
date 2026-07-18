@@ -1,15 +1,20 @@
-// Pure helpers for the SlimeNRF firmware filename taxonomy.
+// Pure helpers for the SlimeNRF/VYRO firmware filename taxonomy.
 //
-// The firmware CI publishes one rolling `latest` release with ~200 assets whose
-// names encode every build option, e.g.
+// The firmware CI publishes releases whose assets encode every build option in
+// the filename. VYRO's CI (VYRO-VR/Firmware) names files like
+//   VVR_Tracker_ProMicro_Default_I2C_f750a5b.uf2
+//   VVR_Receiver_Holyiot_21017_2309f8b.hex
+// where the last token is always the source commit the file was built from
+// (also tolerated: a VYRO_VR_ prefix and hash-less names, as in the very first
+// release). The upstream SlimeNRF CI names files like
 //   SlimeNRF_Tracker_TDMA_SW0_NoSleep_SPI_Mag_ProMicro.uf2
-//   SlimeNRF_Holyiot_Dongle_TDMA_Receiver.hex
 //
 // Parsing strategy: pull every known *option* token out of the name; whatever
 // tokens remain are the board. This is order-independent and degrades well as
 // the CI adds new boards (a board we've never seen still parses — it just lands
-// in the board name). A full selection of (board + every option) maps to at
-// most one file, which is what makes the picker deterministic.
+// in the board name, e.g. "ProMicro Default" vs "ProMicro Stacked"). A full
+// selection of (board + every option) maps to at most one file, which is what
+// makes the picker deterministic.
 
 import type {
   FirmwareAsset,
@@ -22,11 +27,22 @@ import type {
   ParsedFirmware
 } from './types'
 
-/** Parse a SlimeNRF asset filename into structured fields, or null if it isn't one. */
+/** Parse a firmware asset filename into structured fields, or null if it isn't one. */
 export function parseFirmwareName(name: string): ParsedFirmware | null {
-  const m = /^SlimeNRF_(.+)\.(uf2|hex|zip)$/i.exec(name)
+  const m = /^(?:VYRO_VR|VVR|SlimeNRF)_(.+)\.(uf2|hex|zip)$/i.exec(name)
   if (!m) return null
   const ext = m[2].toLowerCase()
+
+  const tokens = m[1].split('_')
+  // VYRO's CI always suffixes the source commit hash (e.g.
+  // VVR_Tracker_Mochi_f750a5b.uf2). Pull it out so board keys stay stable
+  // across releases; tolerate hash-less names (SlimeNRF CI, first VYRO release).
+  let commit: string | undefined
+  const last = tokens[tokens.length - 1]
+  if (tokens.length > 1 && /^[0-9a-f]{7,40}$/i.test(last)) {
+    commit = last.toLowerCase()
+    tokens.pop()
+  }
 
   let kind: FirmwareKind = 'tracker'
   let protocol: FirmwareProtocol = 'standard'
@@ -38,7 +54,7 @@ export function parseFirmwareName(name: string): ParsedFirmware | null {
   let sw0 = false
   const board: string[] = []
 
-  for (const tok of m[1].split('_')) {
+  for (const tok of tokens) {
     switch (tok.toLowerCase()) {
       case 'tracker':
         kind = 'tracker'
@@ -99,6 +115,7 @@ export function parseFirmwareName(name: string): ParsedFirmware | null {
     bus,
     sw0,
     fork,
+    commit,
     ext
   }
 }

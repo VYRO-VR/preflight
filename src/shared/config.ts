@@ -64,16 +64,14 @@ export const BOOTLOADER_VOLUME_LABELS = ['NICENANO', 'SLIMEVRTRK']
 // SlimeVR Server SolarXR WebSocket feed (same endpoint the SlimeVR GUI uses).
 export const SLIMEVR_WS_URL = 'ws://127.0.0.1:21110'
 
-// Firmware source — the SlimeNRF firmware CI. It publishes a single rolling
-// `latest` release whose ~200 assets cover every board + build-option combo
-// (see @shared/firmware-naming). The firmware step reads that release and lets
-// the user pick their board + options; it degrades gracefully if it can't be
-// reached. To pin a different fork/build server, change these three lines.
-export const FIRMWARE_REPO = { owner: 'Shine-Bright-Meow', repo: 'SlimeNRF-Firmware-CI' }
-export const FIRMWARE_RELEASE_TAG = 'latest'
+// Firmware source — VYRO's firmware repo. The firmware step reads the repo's
+// releases list (newest first) and lets the user pick their board + options
+// from the chosen release's assets (see @shared/firmware-naming). It works
+// whether the repo publishes versioned releases or a single rolling one, and
+// degrades gracefully while there are no releases yet or GitHub can't be
+// reached. To pin a different fork/build server, change these two lines.
+export const FIRMWARE_REPO = { owner: 'VYRO-VR', repo: 'Firmware' }
 export const FIRMWARE_RELEASES_API = `https://api.github.com/repos/${FIRMWARE_REPO.owner}/${FIRMWARE_REPO.repo}/releases`
-// The specific rolling release the picker reads from.
-export const FIRMWARE_RELEASE_API = `${FIRMWARE_RELEASES_API}/tags/${FIRMWARE_RELEASE_TAG}`
 
 // A release is treated as "recommended" when its notes contain this marker,
 // otherwise the latest non-prerelease release is used.
@@ -153,7 +151,7 @@ export const LINKS = {
   store: 'https://vyrovr.com',
   docs: 'https://docs.vyrovr.com',
   setupGuide: 'https://vyrovr.com/setup',
-  firmwareRepo: `https://github.com/${FIRMWARE_REPO.owner}/${FIRMWARE_REPO.repo}/releases/tag/${FIRMWARE_RELEASE_TAG}`,
+  firmwareRepo: `https://github.com/${FIRMWARE_REPO.owner}/${FIRMWARE_REPO.repo}/releases`,
   smolDocs: 'https://docs.slimevr.dev/smol-slimes',
   slimevrDownload: 'https://slimevr.dev',
   slimevrDocs: 'https://docs.slimevr.dev',
