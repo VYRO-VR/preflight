@@ -58,8 +58,10 @@ export const RECEIVER_USB_IDS: {
   // TODO: add HolyIOT receiver VID/PID(s) with flashMethod: 'dfu-zip' once confirmed.
 ]
 
-// Mass-storage volume labels exposed by a tracker in UF2/DFU bootloader mode.
-export const BOOTLOADER_VOLUME_LABELS = ['NICENANO', 'SLIMEVRTRK']
+// Mass-storage volume labels exposed by a tracker or receiver in UF2
+// bootloader mode. 'FOX-BOOT' is the Fox dongle receiver (confirmed on real
+// hardware); the others are common tracker bootloaders.
+export const BOOTLOADER_VOLUME_LABELS = ['NICENANO', 'SLIMEVRTRK', 'FOX-BOOT']
 
 // SlimeVR Server SolarXR WebSocket feed (same endpoint the SlimeVR GUI uses).
 export const SLIMEVR_WS_URL = 'ws://127.0.0.1:21110'
