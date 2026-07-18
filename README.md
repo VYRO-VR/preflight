@@ -72,10 +72,26 @@ macOS `.dmg` from Linux). CI handles this with a per-OS matrix:
 - **Build installers** (`installer.yml`, on `claude/**` pushes or manual dispatch) uploads the
   installers as downloadable workflow artifacts without publishing a release.
 
-Code signing is optional but recommended. Provide `CSC_LINK` + `CSC_KEY_PASSWORD` for Windows
-(avoids SmartScreen) and macOS signing; add `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` +
-`APPLE_TEAM_ID` to notarize the macOS build (avoids Gatekeeper warnings). Unsigned builds work
-everywhere — macOS just needs a right-click → **Open** the first time.
+**Windows code signing** uses [Azure Trusted Signing](https://learn.microsoft.com/azure/trusted-signing/)
+to remove the SmartScreen "unknown publisher" warning. It is **opt-in**: the release workflows
+inject the signing config only when the credentials below are present, so builds stay green
+(just unsigned) until it's configured. To turn it on, add these to the repo (Settings → Secrets
+and variables → Actions):
+
+- **Secrets** (service-principal auth): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`.
+- **Variables** (non-secret signing identity): `AZURE_PUBLISHER_NAME` (cert CommonName),
+  `AZURE_SIGN_ENDPOINT` (e.g. `https://eus.codesigning.azure.net/`), `AZURE_CODE_SIGNING_ACCOUNT`,
+  `AZURE_CERT_PROFILE`.
+
+Once `AZURE_TENANT_ID` is set, the release workflows (`release.yml`, `release-on-merge.yml`)
+install the `TrustedSigning` PowerShell module on the Windows runner and sign the `.exe`
+automatically — no code changes needed. Branch/dev builds (`installer.yml`, local `build:win`)
+are always unsigned.
+
+**macOS** signing/notarization is optional: add `CSC_LINK` + `CSC_KEY_PASSWORD` plus `APPLE_ID`
++ `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID` to sign and notarize (avoids Gatekeeper
+warnings). Unsigned builds work everywhere — macOS just needs a right-click → **Open** the
+first time.
 
 > **Platform note:** the cross-platform builds run today, but the deeper hardware-detection
 > steps (USB receiver enumeration, Windows-version checks, drive-letter firmware flashing) are

@@ -30,8 +30,16 @@ win:
     - target: portable
       arch: [x64]
   icon: build/icon.ico
-  # Code-signing: set CSC_LINK + CSC_KEY_PASSWORD in CI to enable.
-  # Unsigned builds work but trigger Windows SmartScreen warnings.
+  # Windows code signing (removes the SmartScreen "unknown publisher" warning)
+  # is done via Azure Trusted Signing, but it is deliberately NOT configured
+  # here: putting `azureSignOptions` in this always-loaded config would make
+  # every Windows build attempt to sign — including local `build:win` and the
+  # unsigned branch artifacts from installer.yml — and fail when no Azure
+  # credentials are present. Instead the release workflows (release.yml /
+  # release-on-merge.yml) inject `win.azureSignOptions` via electron-builder
+  # `-c.win.azureSignOptions.*` CLI overrides, gated on the AZURE_* secrets
+  # being set. See those workflows and README.md for the required GitHub
+  # secrets/variables.
 nsis:
   oneClick: false
   perMachine: false
