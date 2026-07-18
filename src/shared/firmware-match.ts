@@ -1,38 +1,48 @@
-// Pure firmware build-comparison helpers, shared by the main process (reads the
-// receiver over serial) and the renderer (shows match status + gates updates).
+// Pure firmware up-to-date comparison, shared by main and renderer.
+//
+// Every VYRO firmware file embeds the short commit of the source it was built
+// from (see @shared/firmware-naming), and devices report the commit they run:
+// the receiver in its `info` banner (`Commit v1.2.0-4-gf750a5b`), trackers via
+// the firmware string SlimeVR Server relays. "Up to date" therefore means "the
+// device's commit is the latest release's commit" — no fragile build-date
+// comparisons between devices.
 
-import { FIRMWARE_BUILD_DATE_REGEX } from './config'
-import type { FirmwareMatch, ReceiverInfo } from './types'
+import type { FirmwareMatch } from './types'
 
-/** The build-date token in a firmware string, or the trimmed string itself. */
-export function firmwareBuildToken(firmware?: string): string | undefined {
-  if (!firmware) return undefined
-  return FIRMWARE_BUILD_DATE_REGEX.exec(firmware)?.[0] ?? firmware.trim()
+/**
+ * Normalize a commit-ish token to a bare short hash: accepts a plain hash
+ * ("f750a5b"), a git describe ("v1.2.0-4-gf750a5b"), or any string ending in
+ * one. Returns undefined when no hash can be found.
+ */
+export function commitToken(text?: string): string | undefined {
+  if (!text) return undefined
+  const trimmed = text.trim()
+  // git describe: take the trailing g<hash> part.
+  const described = /-g([0-9a-f]{6,40})$/i.exec(trimmed)
+  if (described) return described[1].toLowerCase()
+  // A hash anywhere at the end of the string (e.g. "SmolSlime 2309f8b").
+  const tail = /\b([0-9a-f]{6,40})$/i.exec(trimmed)
+  if (tail && /[a-f]/i.test(tail[1])) return tail[1].toLowerCase()
+  // The whole string is a hash (digits-only hashes pass here when exact).
+  if (/^[0-9a-f]{6,40}$/i.test(trimmed)) return trimmed.toLowerCase()
+  return undefined
+}
+
+/** Whether two commit hashes refer to the same commit (short vs long). */
+export function commitsEqual(a: string, b: string): boolean {
+  const x = a.toLowerCase()
+  const y = b.toLowerCase()
+  return x.startsWith(y) || y.startsWith(x)
 }
 
 /**
- * Compare a receiver's firmware build against the trackers'. A mismatch is
- * reported when every tracker shares a build token that differs from the
- * receiver's. When either side lacks a comparable token, the result is
- * 'unknown' rather than a false alarm.
+ * Compare an installed firmware's commit-ish string against the latest
+ * release's commit. When either side is unreadable the result is 'unknown'
+ * rather than a false alarm.
  */
-export function matchFirmware(
-  receiver: ReceiverInfo,
-  trackerFirmwares: (string | undefined)[]
-): FirmwareMatch {
-  const receiverToken = receiver.buildDate ?? firmwareBuildToken(receiver.firmwareVersion)
-  const trackerTokens = Array.from(
-    new Set(trackerFirmwares.map(firmwareBuildToken).filter((t): t is string => Boolean(t)))
-  )
-
-  if (!receiverToken || trackerTokens.length === 0) {
-    return { status: 'unknown', receiverBuildDate: receiverToken }
-  }
-
-  const allMatch = trackerTokens.every((t) => t === receiverToken)
-  return {
-    status: allMatch ? 'match' : 'mismatch',
-    receiverBuildDate: receiverToken,
-    trackerBuildDate: trackerTokens[0]
-  }
+export function matchToLatest(installed?: string, latestCommit?: string): FirmwareMatch {
+  const current = commitToken(installed)
+  const latest = latestCommit ? commitToken(latestCommit) ?? latestCommit.toLowerCase() : undefined
+  if (!current || !latest) return { status: 'unknown', current, latest }
+  return { status: commitsEqual(current, latest) ? 'match' : 'mismatch', current, latest }
 }

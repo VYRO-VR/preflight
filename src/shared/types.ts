@@ -109,21 +109,27 @@ export interface ReceiverPort {
   flashMethod: ReceiverFlashMethod
 }
 
-/** Firmware info read from a receiver over its serial console. */
+/** Firmware info read from a receiver over its serial console (`info`). */
 export interface ReceiverInfo {
+  /** Semantic version, e.g. "1.2.0+3". */
   firmwareVersion?: string
-  /** Build-date token extracted from the firmware string, when present. */
+  /** Source commit the firmware was built from (short hash or git describe). */
+  commit?: string
+  /** Build timestamp, e.g. "2026-07-18 15:56:12". */
   buildDate?: string
+  /** Board target reported by the firmware, e.g. "foxdongle_uf2/nrf52840". */
+  board?: string
   /** Raw console output, for diagnostics. */
   raw: string
 }
 
-/** Result of comparing a receiver's firmware build against the trackers'. */
+/** Result of comparing installed firmware against the latest release. */
 export interface FirmwareMatch {
   status: 'match' | 'mismatch' | 'unknown'
-  receiverBuildDate?: string
-  trackerBuildDate?: string
-  detail?: string
+  /** Commit token of the installed firmware, when readable. */
+  current?: string
+  /** Commit token of the latest release build, when known. */
+  latest?: string
 }
 
 /** Request to flash a Secure DFU .zip package to a receiver via nrfutil. */
@@ -163,64 +169,35 @@ export interface FirmwareAsset {
   name: string
   downloadUrl: string
   sizeBytes: number
-  /** Structured fields decoded from the firmware filename, when it matches. */
+  /** Structured fields decoded from the VYRO filename, when it matches. */
   parsed?: ParsedFirmware
 }
 
 // ---------------------------------------------------------------------------
-// Firmware filename taxonomy (VYRO / SlimeNRF CI naming scheme)
+// Firmware filename taxonomy (VYRO-VR/Firmware naming scheme)
 //
-// Asset names look like `VYRO_VR_Tracker_ProMicro_Default_I2C.uf2`,
-// `VYRO_VR_Receiver_Holyiot_21017.hex`, or (upstream SlimeNRF CI)
-// `SlimeNRF_Tracker_TDMA_SW0_NoSleep_SPI_Mag_ProMicro.uf2`. Every option is an
-// optional token; whatever tokens are left after pulling the known options out
-// form the board name. See `@shared/firmware-naming`.
+// Asset names look like `VVR_Receiver_Fox_Dongle_f750a5b.uf2` or
+// `VVR_Tracker_ProMicro_Stacked_I2C_2309f8b.uf2`: a `VVR` prefix, the kind,
+// the board/variant name, and the short commit of the firmware source it was
+// built from. One build per board — every option (TDMA radio, sleep, …) is
+// baked in. See `@shared/firmware-naming`.
 // ---------------------------------------------------------------------------
 
 export type FirmwareKind = 'tracker' | 'receiver'
-/** Radio protocol — the receiver and trackers must use the same one. */
-export type FirmwareProtocol = 'standard' | 'tdma'
-export type FirmwareClock = 'default' | 'clk' | 'noclk'
-export type FirmwareBus = 'none' | 'i2c' | 'spi' | 'smspi'
-/** Build variant: the stock build or the JitingCat fork. */
-export type FirmwareFork = 'standard' | 'jitingcat'
 
 export interface ParsedFirmware {
   kind: FirmwareKind
-  /** Human board name, e.g. "ProMicro", "SlimevrMini3 R6", "Holyiot Dongle". */
+  /** Human board name, e.g. "Fox Dongle", "ProMicro Stacked I2C". */
   board: string
-  /** Normalized board key for grouping/equality, e.g. "promicro". */
+  /** Normalized board key for grouping/equality, e.g. "fox_dongle". */
   boardKey: string
-  protocol: FirmwareProtocol
-  /** True when deep sleep is enabled (the default; `NoSleep` builds set false). */
-  sleep: boolean
-  /** True when the magnetometer is enabled. */
-  mag: boolean
-  clock: FirmwareClock
-  bus: FirmwareBus
-  /** True for `SW0` builds (alternate button/wake pin). */
-  sw0: boolean
-  fork: FirmwareFork
   /**
-   * Source commit the file was built from — VYRO's CI always suffixes it to
-   * the filename (e.g. `VVR_Tracker_Mochi_f750a5b.uf2`). Lowercased;
-   * undefined for hash-less names (SlimeNRF CI, first VYRO release).
+   * Short commit hash of the firmware source this file was built from
+   * (lowercased). Undefined for hash-less names, as in the first release.
    */
   commit?: string
   /** File extension without the dot: 'uf2' | 'hex' | 'zip'. */
   ext: string
-}
-
-/** A user's firmware choice — board plus the option dimensions. */
-export interface FirmwareSelection {
-  boardKey: string
-  protocol: FirmwareProtocol
-  sleep: boolean
-  mag: boolean
-  clock: FirmwareClock
-  bus: FirmwareBus
-  sw0: boolean
-  fork: FirmwareFork
 }
 
 export interface FirmwareCatalog {

@@ -64,18 +64,15 @@ export const BOOTLOADER_VOLUME_LABELS = ['NICENANO', 'SLIMEVRTRK']
 // SlimeVR Server SolarXR WebSocket feed (same endpoint the SlimeVR GUI uses).
 export const SLIMEVR_WS_URL = 'ws://127.0.0.1:21110'
 
-// Firmware source — VYRO's firmware repo. The firmware step reads the repo's
-// releases list (newest first) and lets the user pick their board + options
-// from the chosen release's assets (see @shared/firmware-naming). It works
-// whether the repo publishes versioned releases or a single rolling one, and
-// degrades gracefully while there are no releases yet or GitHub can't be
-// reached. To pin a different fork/build server, change these two lines.
+// Firmware source — the VYRO VR firmware CI (github.com/VYRO-VR/Firmware). It
+// builds every board VYRO sells and publishes dated releases whose assets are
+// named `VVR_<Receiver|Tracker>_<Board>_<commit>.<uf2|hex>` (see
+// @shared/firmware-naming). The app reads the releases list (newest first) and
+// offers the newest stable release, falling back to the newest prerelease; it
+// degrades gracefully while there are no releases or GitHub can't be reached.
+// To pin a different repo, change these two lines.
 export const FIRMWARE_REPO = { owner: 'VYRO-VR', repo: 'Firmware' }
 export const FIRMWARE_RELEASES_API = `https://api.github.com/repos/${FIRMWARE_REPO.owner}/${FIRMWARE_REPO.repo}/releases`
-
-// A release is treated as "recommended" when its notes contain this marker,
-// otherwise the latest non-prerelease release is used.
-export const FIRMWARE_RECOMMENDED_MARKER = '[recommended]'
 
 // Tracker button reference with VYRO LED feedback colors.
 export const BUTTON_ACTIONS: { input: string; action: string; led: string; detail: string }[] = [
@@ -100,25 +97,27 @@ export const DFU_PRESSES = 4
 // blue once per second). Surfaced in the guided pairing flow.
 export const PAIRING_PRESSES = 3
 
-// Receiver serial-console protocol used by the guided pairing flow.
+// Receiver serial-console protocol (SmolSlime / SlimeVR-Tracker-nRF-Receiver).
 //
-// IMPORTANT: these values are firmware-specific. The nRF/smol-slime receiver
-// exposes a USB serial (CDC) console; the host enters pairing mode and the
-// receiver prints an "Added device …" line for each tracker it accepts. Confirm
-// the baud rate, the pairing command, and the output format against the VYRO
-// firmware fork (VYRO-VR/jitingcn-smol-slime-firmware) or real hardware before
-// release — everything else in the pairing flow reads from here, so a protocol
-// correction is a one-file change.
+// The receiver exposes a USB serial (CDC) console with the SmolSlime command
+// set: `pair` enters pairing mode, `exit` leaves it, `info` prints firmware
+// details, `dfu` reboots into the bootloader. `info` output looks like:
+//
+//   <manufacturer> <product>
+//   <name> 1.2.0+3 (Commit v1.2.0-4-gf750a5b, Build 2026-07-18 15:56:12)
+//   Board: foxdongle_uf2
+//   SOC: nRF52840
+//   Target: foxdongle_uf2/nrf52840
+//   Device address: 95CB23A0FDF7
+//
+// Everything protocol-shaped reads from here, so a firmware-side change is a
+// one-file edit.
 export const RECEIVER_SERIAL = {
   baudRate: 115200,
   /** Command/keystroke sent to put the receiver into pairing mode. */
   enterPairingCmd: 'pair\n',
-  /**
-   * Command/keystroke sent to take the receiver back out of pairing mode.
-   * Pairing mode is a toggle (the same control enters and exits it), so this
-   * re-sends the pairing command by default. VERIFY against the firmware.
-   */
-  exitPairingCmd: 'pair\n',
+  /** Command/keystroke sent to take the receiver back out of pairing mode. */
+  exitPairingCmd: 'exit\n',
   /**
    * Matches the receiver console line printed when a tracker is paired, e.g.
    * `<inf> esb_event: Added device on id 0 with address 95CB23A0FDF7`.
@@ -127,22 +126,24 @@ export const RECEIVER_SERIAL = {
   addedDeviceRegex: /Added device on id (\d+) with address ([0-9A-Fa-f]+)/,
 
   /** Command/keystroke that makes the receiver print its firmware info. */
-  versionCmd: 'version\n',
+  infoCmd: 'info\n',
   /** Command/keystroke that reboots the receiver into its DFU bootloader. */
   dfuCmd: 'dfu\n',
-  /**
-   * Extracts the firmware version token from the receiver's `version` output,
-   * e.g. `firmware version 0.5.0` → `0.5.0`. VERIFY against the firmware.
-   */
-  versionRegex: /version[:\s]+v?([0-9][0-9A-Za-z.+-]*)/i
+
+  /** `… 1.2.0+3 (Commit …` → the semantic version before the parenthesis. */
+  versionRegex: /\b(v?\d+\.\d+\.\d+[^\s()]*)\s*\(commit/i,
+  /** `(Commit v1.2.0-4-gf750a5b, …` → the commit / git-describe token. */
+  commitRegex: /\(commit\s+([^,()\s]+)/i,
+  /** `… Build 2026-07-18 15:56:12)` → the build timestamp. */
+  buildDateRegex: /\bbuild\s+(\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{1,2}:\d{2}:\d{2})?)/i,
+  /** `Target: foxdongle_uf2/nrf52840` → the board target. */
+  boardRegex: /^target:\s*(\S+)/im
 }
 
 /**
- * Extracts a build-date token (e.g. `Jun  1 2026`, `2026-06-01`) from any
- * firmware version/build string — used to compare a receiver against the
- * trackers. Matches an ISO date or a C `__DATE__` style date. Returns the
- * matched substring as-is so equal builds compare equal. VERIFY the firmware
- * actually embeds a build date; otherwise the version string is compared whole.
+ * Extracts a build-date token (e.g. `2026-06-01`, `Jun  1 2026`) from any
+ * firmware version/build string. Matches an ISO date or a C `__DATE__` style
+ * date; returns the matched substring as-is so equal builds compare equal.
  */
 export const FIRMWARE_BUILD_DATE_REGEX =
   /\d{4}-\d{2}-\d{2}|[A-Za-z]{3}\s+\d{1,2}\s+\d{4}/
@@ -151,7 +152,7 @@ export const LINKS = {
   store: 'https://vyrovr.com',
   docs: 'https://docs.vyrovr.com',
   setupGuide: 'https://vyrovr.com/setup',
-  firmwareRepo: `https://github.com/${FIRMWARE_REPO.owner}/${FIRMWARE_REPO.repo}/releases`,
+  firmwareRepo: `https://github.com/${FIRMWARE_REPO.owner}/${FIRMWARE_REPO.repo}/releases/latest`,
   smolDocs: 'https://docs.slimevr.dev/smol-slimes',
   slimevrDownload: 'https://slimevr.dev',
   slimevrDocs: 'https://docs.slimevr.dev',

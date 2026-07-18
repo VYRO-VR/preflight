@@ -61,7 +61,7 @@ async function withPort<T>(
 /** Ask the receiver for its firmware info over the serial console. */
 export async function readReceiverInfo(path: string): Promise<ReceiverInfo> {
   return withPort(path, async (port, collected) => {
-    port.write(RECEIVER_SERIAL.versionCmd)
+    port.write(RECEIVER_SERIAL.infoCmd)
     await delay(1500)
     return parseReceiverInfo(collected())
   })

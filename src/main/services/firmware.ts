@@ -5,11 +5,7 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
-import {
-  FIRMWARE_RELEASES_API,
-  FIRMWARE_RECOMMENDED_MARKER,
-  BOOTLOADER_VOLUME_LABELS
-} from '@shared/config'
+import { FIRMWARE_RELEASES_API, BOOTLOADER_VOLUME_LABELS } from '@shared/config'
 import { withParsed } from '@shared/firmware-naming'
 import type {
   FirmwareCatalog,
@@ -41,14 +37,15 @@ interface GithubRelease {
 }
 
 function mapRelease(r: GithubRelease): FirmwareRelease {
-  const notes = r.body ?? ''
   return {
     tag: r.tag_name,
     name: r.name || r.tag_name,
     publishedAt: r.published_at,
-    notes,
+    notes: r.body ?? '',
     prerelease: r.prerelease,
-    recommended: notes.toLowerCase().includes(FIRMWARE_RECOMMENDED_MARKER.toLowerCase()),
+    // The VYRO firmware CI publishes plain dated releases; the latest stable
+    // one IS the recommended build.
+    recommended: !r.prerelease,
     // Keep every flashable asset type (.uf2 drag-drop, .hex/.zip via nrfutil)
     // and decode each filename into structured fields for the picker. .uf2 sorts
     // first so existing callers that grab assets[0] keep working.

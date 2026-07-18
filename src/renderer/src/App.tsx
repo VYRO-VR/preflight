@@ -7,7 +7,7 @@ import { HomeScreen, type HomeAction } from './home/HomeScreen'
 import { PairingFlow } from './flows/PairingFlow'
 import { CalibrateFlow } from './flows/CalibrateFlow'
 import { TroubleshootFlow } from './flows/TroubleshootFlow'
-import { ReceiverUpdateFlow } from './flows/ReceiverUpdateFlow'
+import { FirmwareUpdateFlow } from './flows/FirmwareUpdateFlow'
 
 type View = 'home' | 'wizard' | 'pair' | 'calibrate' | 'troubleshoot' | 'receiver'
 
@@ -43,7 +43,7 @@ export default function App() {
   if (view === 'pair') return <PairingFlow onExit={goHome} />
   if (view === 'calibrate') return <CalibrateFlow onExit={goHome} />
   if (view === 'troubleshoot') return <TroubleshootFlow onExit={goHome} />
-  if (view === 'receiver') return <ReceiverUpdateFlow onExit={goHome} />
+  if (view === 'receiver') return <FirmwareUpdateFlow onExit={goHome} />
 
   const Step = STEPS[index].Component
   const currentId = STEPS[index].id

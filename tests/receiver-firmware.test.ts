@@ -2,52 +2,83 @@ import { describe, it, expect } from 'vitest'
 import { parseReceiverInfo } from '../src/main/services/receiver-protocol'
 import { pickAsset } from '../src/main/services/firmware'
 import { buildProgramArgs, nrfutilCandidates } from '../src/main/services/nrfutil'
-import { firmwareBuildToken, matchFirmware } from '../src/shared/firmware-match'
-import type { FirmwareRelease, ReceiverInfo } from '../src/shared/types'
+import { commitToken, commitsEqual, matchToLatest } from '../src/shared/firmware-match'
+import type { FirmwareRelease } from '../src/shared/types'
+
+// Real-shaped `info` output from the SmolSlime receiver firmware: the FW_STRING
+// banner plus Board/SOC/Target/address lines.
+const INFO_OUTPUT = [
+  'VYRO VR Receiver',
+  'SlimeVR Receiver 1.2.0+3 (Commit v1.2.0-4-gf750a5b, Build 2026-07-18 15:56:12)',
+  '',
+  'Board: foxdongle_uf2',
+  'SOC: nRF52840',
+  'Target: foxdongle_uf2/nrf52840',
+  '',
+  'Device address: 95CB23A0FDF7'
+].join('\r\n')
 
 describe('parseReceiverInfo', () => {
-  it('extracts version and build date from console output', () => {
-    const info = parseReceiverInfo('SlimeVR receiver\r\nfirmware version 0.5.0 (Jun  1 2026)\r\n> ')
+  it('extracts version, commit, build date, and board from the info banner', () => {
+    const info = parseReceiverInfo(INFO_OUTPUT)
+    expect(info.firmwareVersion).toBe('1.2.0+3')
+    expect(info.commit).toBe('v1.2.0-4-gf750a5b')
+    expect(info.buildDate).toBe('2026-07-18 15:56:12')
+    expect(info.board).toBe('foxdongle_uf2/nrf52840')
+  })
+
+  it('handles a plain-hash commit', () => {
+    const info = parseReceiverInfo('fw 0.5.0 (Commit f750a5b, Build 2026-07-18 15:56:12)')
     expect(info.firmwareVersion).toBe('0.5.0')
-    expect(info.buildDate).toBe('Jun  1 2026')
+    expect(info.commit).toBe('f750a5b')
   })
 
   it('keeps raw output and tolerates unknown formats', () => {
     const info = parseReceiverInfo('garbage prompt')
     expect(info.firmwareVersion).toBeUndefined()
+    expect(info.commit).toBeUndefined()
     expect(info.raw).toBe('garbage prompt')
   })
 })
 
-describe('firmwareBuildToken', () => {
-  it('pulls an ISO build date out of a firmware string', () => {
-    expect(firmwareBuildToken('0.5.0+2026-06-01')).toBe('2026-06-01')
+describe('commitToken', () => {
+  it('extracts the hash from a git describe string', () => {
+    expect(commitToken('v1.2.0-4-gf750a5b')).toBe('f750a5b')
   })
-  it('falls back to the trimmed string when no date is present', () => {
-    expect(firmwareBuildToken('  0.5.0  ')).toBe('0.5.0')
+  it('accepts a bare short hash', () => {
+    expect(commitToken('f750a5b')).toBe('f750a5b')
+    expect(commitToken('  2309F8B ')).toBe('2309f8b')
   })
-  it('returns undefined for missing firmware', () => {
-    expect(firmwareBuildToken(undefined)).toBeUndefined()
+  it('finds a trailing hash in a longer firmware string', () => {
+    expect(commitToken('SmolSlime foxdongle 2309f8b')).toBe('2309f8b')
+  })
+  it('does not mistake versions or dates for hashes', () => {
+    expect(commitToken('1.2.0')).toBeUndefined()
+    expect(commitToken('2026-07-18')).toBeUndefined()
+    expect(commitToken(undefined)).toBeUndefined()
   })
 })
 
-describe('matchFirmware', () => {
-  const receiver = (raw: string): ReceiverInfo => parseReceiverInfo(raw)
-
-  it('reports a match when build dates align', () => {
-    const r = matchFirmware(receiver('version 0.5.0 (2026-06-01)'), ['0.5.0+2026-06-01'])
-    expect(r.status).toBe('match')
+describe('commitsEqual', () => {
+  it('matches short against long hashes in either direction', () => {
+    expect(commitsEqual('f750a5b', 'f750a5b8c9d0e1f2')).toBe(true)
+    expect(commitsEqual('f750a5b8c9d0e1f2', 'F750A5B')).toBe(true)
+    expect(commitsEqual('f750a5b', '2309f8b')).toBe(false)
   })
+})
 
-  it('reports a mismatch when build dates differ', () => {
-    const r = matchFirmware(receiver('version 0.5.0 (2026-06-01)'), ['0.5.0+2026-05-01'])
-    expect(r.status).toBe('mismatch')
-    expect(r.receiverBuildDate).toBe('2026-06-01')
-    expect(r.trackerBuildDate).toBe('2026-05-01')
+describe('matchToLatest', () => {
+  it('reports a match when the installed commit is the latest', () => {
+    expect(matchToLatest('v1.2.0-4-gf750a5b', 'f750a5b').status).toBe('match')
   })
-
-  it('is unknown when there is nothing to compare', () => {
-    expect(matchFirmware(receiver('version 0.5.0 (2026-06-01)'), []).status).toBe('unknown')
+  it('reports a mismatch with both tokens when they differ', () => {
+    const m = matchToLatest('aabbcc1', 'f750a5b')
+    expect(m).toEqual({ status: 'mismatch', current: 'aabbcc1', latest: 'f750a5b' })
+  })
+  it('is unknown when either side is unreadable', () => {
+    expect(matchToLatest(undefined, 'f750a5b').status).toBe('unknown')
+    expect(matchToLatest('garbage', 'f750a5b').status).toBe('unknown')
+    expect(matchToLatest('f750a5b', undefined).status).toBe('unknown')
   })
 })
 

@@ -4,36 +4,25 @@ import {
   withParsed,
   firmwareBoards,
   candidatesFor,
-  dimensionValues,
   resolveFirmware,
-  defaultSelection,
+  releaseCommitFor,
   guessBoardKey
 } from '../src/shared/firmware-naming'
-import type { FirmwareAsset, FirmwareSelection } from '../src/shared/types'
+import type { FirmwareAsset } from '../src/shared/types'
 
-// A representative slice of the real `latest` asset list, chosen to exercise
-// every option token and every awkward (multi-token) board name.
+// The real asset list of a VYRO-VR/Firmware release.
 const REAL_NAMES = [
-  'SlimeNRF_Tracker_ProMicro.uf2',
-  'SlimeNRF_Tracker_Mag_ProMicro.uf2',
-  'SlimeNRF_Tracker_I2C_Mag_ProMicro.uf2',
-  'SlimeNRF_Tracker_TDMA_SW0_NoSleepCLK_SPI_Mag_ProMicro.uf2',
-  'SlimeNRF_Tracker_NoSleep_smSPI_ProMicro.uf2',
-  'SlimeNRF_Tracker_Chrysalis_ProMicro.uf2',
-  'SlimeNRF_Tracker_Mag_Chrysalis_ProMicro_JitingCat.uf2',
-  'SlimeNRF_Tracker_NoCLK_NoSleep_I2C_Mag_StackedSmol.uf2',
-  'SlimeNRF_Tracker_XIAO.uf2',
-  'SlimeNRF_Tracker_XIAO_Sense.uf2',
-  'SlimeNRF_Tracker_NoSleep_SlimevrMini3_R6.uf2',
-  'SlimeNRF_Tracker_SlimevrMini4R9.uf2',
-  'SlimeNRF_Tracker_R3.uf2',
-  'SlimeNRF_Tracker_Bao_JitingCat.uf2',
-  'SlimeNRF_Holyiot_Dongle_Receiver.hex',
-  'SlimeNRF_Holyiot_Dongle_TDMA_Receiver.hex',
-  'SlimeNRF_Nordic_eByte_Dongle_Receiver_JitingCat.hex',
-  'SlimeNRF_Butterfly_P1_TDMA_Receiver.uf2',
-  'SlimeNRF_ProMicro_Receiver.uf2',
-  'SlimeNRF_etee_TDMA_Receiver.uf2'
+  'VVR_Receiver_Fox_Dongle_f750a5b.uf2',
+  'VVR_Receiver_Holyiot_21017_f750a5b.hex',
+  'VVR_Receiver_ProMicro_f750a5b.uf2',
+  'VVR_Receiver_Styria_R1_f750a5b.uf2',
+  'VVR_Tracker_Mochi_2309f8b.uf2',
+  'VVR_Tracker_ProMicro_Chrysalis_2309f8b.uf2',
+  'VVR_Tracker_ProMicro_Default_I2C_2309f8b.uf2',
+  'VVR_Tracker_ProMicro_Default_SPI_2309f8b.uf2',
+  'VVR_Tracker_ProMicro_Stacked_I2C_2309f8b.uf2',
+  'VVR_Tracker_ProMicro_Stacked_SPI_2309f8b.uf2',
+  'VVR_Tracker_Styria_Mini_SPI_2309f8b.uf2'
 ]
 
 const assets: FirmwareAsset[] = REAL_NAMES.map((name) =>
@@ -41,210 +30,129 @@ const assets: FirmwareAsset[] = REAL_NAMES.map((name) =>
 )
 
 describe('parseFirmwareName', () => {
-  it('decodes a fully-loaded tracker name', () => {
-    const p = parseFirmwareName('SlimeNRF_Tracker_TDMA_SW0_NoSleepCLK_SPI_Mag_ProMicro.uf2')
-    expect(p).toMatchObject({
-      kind: 'tracker',
-      board: 'ProMicro',
-      boardKey: 'promicro',
-      protocol: 'tdma',
-      sw0: true,
-      sleep: false,
-      clock: 'clk', // NoSleepCLK implies external clock + no sleep
-      bus: 'spi',
-      mag: true,
-      fork: 'standard',
+  it('decodes a receiver name with a multi-token board', () => {
+    expect(parseFirmwareName('VVR_Receiver_Fox_Dongle_f750a5b.uf2')).toEqual({
+      kind: 'receiver',
+      board: 'Fox Dongle',
+      boardKey: 'fox_dongle',
+      commit: 'f750a5b',
       ext: 'uf2'
     })
   })
 
-  it('defaults the unspecified options (sleep on, no mag, standard protocol)', () => {
-    expect(parseFirmwareName('SlimeNRF_Tracker_ProMicro.uf2')).toMatchObject({
-      protocol: 'standard',
-      sleep: true,
-      mag: false,
-      clock: 'default',
-      bus: 'none',
-      sw0: false,
-      fork: 'standard'
+  it('decodes a tracker variant and .hex receivers', () => {
+    expect(parseFirmwareName('VVR_Tracker_ProMicro_Stacked_I2C_2309f8b.uf2')).toMatchObject({
+      kind: 'tracker',
+      board: 'ProMicro Stacked I2C',
+      boardKey: 'promicro_stacked_i2c',
+      commit: '2309f8b'
     })
-  })
-
-  it('keeps leftover tokens as the board, regardless of token order', () => {
-    expect(parseFirmwareName('SlimeNRF_Tracker_Mag_Chrysalis_ProMicro_JitingCat.uf2')).toMatchObject(
-      { board: 'Chrysalis ProMicro', mag: true, fork: 'jitingcat' }
-    )
-    expect(parseFirmwareName('SlimeNRF_Tracker_XIAO_Sense.uf2')?.board).toBe('XIAO Sense')
-    expect(parseFirmwareName('SlimeNRF_Tracker_NoSleep_SlimevrMini3_R6.uf2')).toMatchObject({
-      board: 'SlimevrMini3 R6',
-      sleep: false
-    })
-  })
-
-  it('parses receivers, including multi-token boards and .hex', () => {
-    expect(parseFirmwareName('SlimeNRF_Holyiot_Dongle_TDMA_Receiver.hex')).toMatchObject({
+    expect(parseFirmwareName('VVR_Receiver_Holyiot_21017_f750a5b.hex')).toMatchObject({
       kind: 'receiver',
-      board: 'Holyiot Dongle',
-      protocol: 'tdma',
+      board: 'Holyiot 21017',
       ext: 'hex'
     })
-    expect(parseFirmwareName('SlimeNRF_Nordic_eByte_Dongle_Receiver_JitingCat.hex')).toMatchObject({
-      kind: 'receiver',
-      board: 'Nordic eByte Dongle',
-      fork: 'jitingcat'
+  })
+
+  it('tolerates a missing commit suffix', () => {
+    expect(parseFirmwareName('VVR_Tracker_Mochi.uf2')).toMatchObject({
+      kind: 'tracker',
+      board: 'Mochi',
+      commit: undefined
     })
   })
 
-  it('rejects unrecognized names', () => {
+  it('rejects unrecognized names (SlimeNRF CI files are not VYRO firmware)', () => {
+    expect(parseFirmwareName('SlimeNRF_Tracker_ProMicro.uf2')).toBeNull()
     expect(parseFirmwareName('random.uf2')).toBeNull()
-    expect(parseFirmwareName('SlimeNRF_Tracker.uf2')).toBeNull() // no board left
     expect(parseFirmwareName('notes.txt')).toBeNull()
     expect(parseFirmwareName('build-info.json')).toBeNull()
   })
 
-  // Names published by the VYRO-VR/Firmware CI (release v2026.07.18-1532).
+  // The very first VYRO release used a VYRO_VR_ prefix and no commit suffix.
   it('parses VYRO_VR-prefixed names', () => {
     expect(parseFirmwareName('VYRO_VR_Tracker_Mochi.uf2')).toMatchObject({
       kind: 'tracker',
       board: 'Mochi',
       boardKey: 'mochi',
+      commit: undefined,
       ext: 'uf2'
     })
-    expect(parseFirmwareName('VYRO_VR_Tracker_ProMicro_Default_I2C.uf2')).toMatchObject({
-      kind: 'tracker',
-      board: 'ProMicro Default',
-      boardKey: 'promicro_default',
-      bus: 'i2c'
-    })
-    expect(parseFirmwareName('VYRO_VR_Tracker_ProMicro_Stacked_SPI.uf2')).toMatchObject({
-      board: 'ProMicro Stacked',
-      bus: 'spi'
-    })
-    expect(parseFirmwareName('VYRO_VR_Tracker_ProMicro_Chrysalis.uf2')?.board).toBe(
-      'ProMicro Chrysalis'
-    )
     expect(parseFirmwareName('VYRO_VR_Receiver_Holyiot_21017.hex')).toMatchObject({
       kind: 'receiver',
       board: 'Holyiot 21017',
       ext: 'hex'
     })
-    expect(parseFirmwareName('VYRO_VR_Receiver_Fox_Dongle33.uf2')?.board).toBe('Fox Dongle33')
   })
 
-  it('parses VVR-prefixed names and extracts the trailing source-commit hash', () => {
-    expect(parseFirmwareName('VVR_Tracker_Mochi_f750a5b.uf2')).toMatchObject({
-      board: 'Mochi',
-      boardKey: 'mochi',
-      commit: 'f750a5b'
-    })
-    expect(parseFirmwareName('VVR_Receiver_Fox_Dongle_2309f8b.uf2')).toMatchObject({
-      board: 'Fox Dongle',
-      commit: '2309f8b'
-    })
+  it('handles commit-hash edge cases', () => {
     // A hash with no decimal digits and a full-length one are still hashes.
     expect(parseFirmwareName('VVR_Tracker_Mochi_abcdefa.uf2')?.commit).toBe('abcdefa')
     expect(
       parseFirmwareName(`VVR_Tracker_Mochi_${'f750a5b23'.padEnd(40, '0')}.uf2`)?.board
     ).toBe('Mochi')
-    // Hash-less names still parse, with no commit recorded.
-    expect(parseFirmwareName('VYRO_VR_Tracker_Mochi.uf2')?.commit).toBeUndefined()
     // Numeric board tokens that are not commit hashes survive.
     expect(parseFirmwareName('VVR_Receiver_Holyiot_22046.hex')?.board).toBe('Holyiot 22046')
     expect(parseFirmwareName('VVR_Receiver_Styria_R1.uf2')?.board).toBe('Styria R1')
+    expect(parseFirmwareName('VYRO_VR_Receiver_Fox_Dongle33.uf2')?.board).toBe('Fox Dongle33')
   })
 })
 
 describe('board grouping', () => {
   it('lists distinct boards per kind', () => {
     const trackers = firmwareBoards(assets, 'tracker').map((b) => b.label)
-    expect(trackers).toContain('ProMicro')
-    expect(trackers).toContain('XIAO Sense')
-    expect(trackers).not.toContain('Holyiot Dongle') // that's a receiver
+    expect(trackers).toContain('Mochi')
+    expect(trackers).toContain('ProMicro Stacked I2C')
+    expect(trackers).not.toContain('Fox Dongle') // that's a receiver
     const receivers = firmwareBoards(assets, 'receiver').map((b) => b.label)
-    expect(receivers).toContain('Holyiot Dongle')
-    expect(receivers).toContain('Butterfly P1')
-  })
-
-  it('counts the ProMicro tracker variants', () => {
-    const promicro = firmwareBoards(assets, 'tracker').find((b) => b.key === 'promicro')
-    // 5 ProMicro tracker builds in the sample set above.
-    expect(promicro?.count).toBe(5)
-  })
-})
-
-describe('dimensionValues', () => {
-  it('reports which options vary for a board', () => {
-    const dims = dimensionValues(candidatesFor(assets, 'tracker', 'promicro'))
-    expect(dims.mag.sort()).toEqual([false, true])
-    expect(dims.bus).toEqual(expect.arrayContaining(['none', 'i2c', 'spi', 'smspi']))
+    expect(receivers).toEqual(['Fox Dongle', 'Holyiot 21017', 'ProMicro', 'Styria R1'])
   })
 })
 
 describe('resolveFirmware', () => {
-  const promicro = candidatesFor(assets, 'tracker', 'promicro')
-
-  it('returns the exact file for a matching selection', () => {
-    const sel: FirmwareSelection = {
-      boardKey: 'promicro',
-      protocol: 'standard',
-      sleep: true,
-      mag: true,
-      clock: 'default',
-      bus: 'i2c',
-      sw0: false,
-      fork: 'standard'
-    }
-    const { asset, exact } = resolveFirmware(promicro, sel)
-    expect(exact).toBe(true)
-    expect(asset?.name).toBe('SlimeNRF_Tracker_I2C_Mag_ProMicro.uf2')
+  it('resolves a board to its single firmware file', () => {
+    const asset = resolveFirmware(candidatesFor(assets, 'receiver', 'fox_dongle'))
+    expect(asset?.name).toBe('VVR_Receiver_Fox_Dongle_f750a5b.uf2')
   })
 
-  it('falls back to the closest real file and flags it inexact', () => {
-    const sel: FirmwareSelection = {
-      boardKey: 'promicro',
-      protocol: 'standard',
-      sleep: true,
-      mag: true,
-      clock: 'noclk', // no such ProMicro build in the sample
-      bus: 'i2c',
-      sw0: false,
-      fork: 'standard'
-    }
-    const { asset, exact } = resolveFirmware(promicro, sel)
-    expect(exact).toBe(false)
-    expect(asset).toBeDefined()
+  it('prefers .uf2 over .hex if a board ever ships both', () => {
+    const both = ['VVR_Receiver_Both_abc1234.hex', 'VVR_Receiver_Both_abc1234.uf2'].map((name) =>
+      withParsed({ name, downloadUrl: 'u', sizeBytes: 1 })
+    )
+    expect(resolveFirmware(both)?.name).toBe('VVR_Receiver_Both_abc1234.uf2')
+  })
+
+  it('returns undefined for no candidates', () => {
+    expect(resolveFirmware([])).toBeUndefined()
   })
 })
 
-describe('defaultSelection', () => {
-  it('always resolves to a real file', () => {
-    for (const board of firmwareBoards(assets, 'tracker')) {
-      const candidates = candidatesFor(assets, 'tracker', board.key)
-      const sel = defaultSelection(candidates, board.key)
-      const { asset, exact } = resolveFirmware(candidates, sel)
-      expect(asset, board.key).toBeDefined()
-      expect(exact, board.key).toBe(true)
-    }
+describe('releaseCommitFor', () => {
+  it('reports the per-kind source commit (receiver and tracker differ)', () => {
+    expect(releaseCommitFor(assets, 'receiver')).toBe('f750a5b')
+    expect(releaseCommitFor(assets, 'tracker')).toBe('2309f8b')
   })
-
-  it('prefers the standard, sleep-on, no-mag build when available', () => {
-    const sel = defaultSelection(candidatesFor(assets, 'tracker', 'promicro'), 'promicro')
-    expect(sel.protocol).toBe('standard')
-    expect(sel.sleep).toBe(true)
-    expect(sel.mag).toBe(false)
+  it('is undefined when no asset of that kind has a commit', () => {
+    expect(releaseCommitFor([], 'receiver')).toBeUndefined()
   })
 })
 
 describe('guessBoardKey', () => {
-  const boards = firmwareBoards(assets, 'tracker')
-  it('matches a board mentioned in a firmware string', () => {
-    expect(guessBoardKey('SlimeNRF 0.5.0 ProMicro build', boards)).toBe('promicro')
+  const receivers = firmwareBoards(assets, 'receiver')
+
+  it("matches the receiver's Target line", () => {
+    expect(guessBoardKey('foxdongle_uf2/nrf52840', receivers)).toBe('fox_dongle')
+    expect(guessBoardKey('holyiot_21017/nrf52840', receivers)).toBe('holyiot_21017')
+    expect(guessBoardKey('styria_r1_uf2/nrf52840', receivers)).toBe('styria_r1')
   })
-  it('prefers the most specific board (XIAO Sense over XIAO)', () => {
-    expect(guessBoardKey('xiao sense rev b', boards)).toBe('xiao_sense')
+
+  it('prefers the most specific board over a base-name prefix', () => {
+    const trackers = firmwareBoards(assets, 'tracker')
+    expect(guessBoardKey('promicro stacked i2c rev b', trackers)).toBe('promicro_stacked_i2c')
   })
+
   it('returns undefined when nothing matches', () => {
-    expect(guessBoardKey('totally unknown', boards)).toBeUndefined()
-    expect(guessBoardKey(undefined, boards)).toBeUndefined()
+    expect(guessBoardKey('totally unknown', receivers)).toBeUndefined()
+    expect(guessBoardKey(undefined, receivers)).toBeUndefined()
   })
 })
