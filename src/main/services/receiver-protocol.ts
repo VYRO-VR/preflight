@@ -34,12 +34,18 @@ export function parseLine(line: string): PairingEvent {
 }
 
 /**
- * Parse the receiver's `version` console output into firmware info. Pulls the
- * version token and a build-date token (if the firmware embeds one) out of the
- * raw text so it can be compared against the trackers.
+ * Parse the receiver's `info` console output into firmware info. The firmware
+ * prints a banner like
+ *   `<name> 1.2.0+3 (Commit v1.2.0-4-gf750a5b, Build 2026-07-18 15:56:12)`
+ * followed by `Board:` / `Target:` lines — pull the version, source commit,
+ * build timestamp, and board target out so the app can compare the receiver
+ * against the latest release.
  */
 export function parseReceiverInfo(raw: string): ReceiverInfo {
   const version = RECEIVER_SERIAL.versionRegex.exec(raw)?.[1]
-  const buildDate = FIRMWARE_BUILD_DATE_REGEX.exec(raw)?.[0]
-  return { firmwareVersion: version, buildDate, raw }
+  const commit = RECEIVER_SERIAL.commitRegex.exec(raw)?.[1]
+  const buildDate =
+    RECEIVER_SERIAL.buildDateRegex.exec(raw)?.[1] ?? FIRMWARE_BUILD_DATE_REGEX.exec(raw)?.[0]
+  const board = RECEIVER_SERIAL.boardRegex.exec(raw)?.[1]
+  return { firmwareVersion: version, commit, buildDate, board, raw }
 }
