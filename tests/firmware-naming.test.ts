@@ -95,10 +95,51 @@ describe('parseFirmwareName', () => {
     })
   })
 
-  it('rejects non-SlimeNRF names', () => {
+  it('rejects unrecognized names', () => {
     expect(parseFirmwareName('random.uf2')).toBeNull()
     expect(parseFirmwareName('SlimeNRF_Tracker.uf2')).toBeNull() // no board left
     expect(parseFirmwareName('notes.txt')).toBeNull()
+    expect(parseFirmwareName('build-info.json')).toBeNull()
+  })
+
+  // Names published by the VYRO-VR/Firmware CI (release v2026.07.18-1532).
+  it('parses VYRO_VR-prefixed names', () => {
+    expect(parseFirmwareName('VYRO_VR_Tracker_Mochi.uf2')).toMatchObject({
+      kind: 'tracker',
+      board: 'Mochi',
+      boardKey: 'mochi',
+      ext: 'uf2'
+    })
+    expect(parseFirmwareName('VYRO_VR_Tracker_ProMicro_Default_I2C.uf2')).toMatchObject({
+      kind: 'tracker',
+      board: 'ProMicro Default',
+      boardKey: 'promicro_default',
+      bus: 'i2c'
+    })
+    expect(parseFirmwareName('VYRO_VR_Tracker_ProMicro_Stacked_SPI.uf2')).toMatchObject({
+      board: 'ProMicro Stacked',
+      bus: 'spi'
+    })
+    expect(parseFirmwareName('VYRO_VR_Tracker_ProMicro_Chrysalis.uf2')?.board).toBe(
+      'ProMicro Chrysalis'
+    )
+    expect(parseFirmwareName('VYRO_VR_Receiver_Holyiot_21017.hex')).toMatchObject({
+      kind: 'receiver',
+      board: 'Holyiot 21017',
+      ext: 'hex'
+    })
+    expect(parseFirmwareName('VYRO_VR_Receiver_Fox_Dongle33.uf2')?.board).toBe('Fox Dongle33')
+  })
+
+  it('parses VVR-prefixed names and strips a trailing source-commit hash', () => {
+    expect(parseFirmwareName('VVR_Tracker_Mochi_f750a5b.uf2')).toMatchObject({
+      board: 'Mochi',
+      boardKey: 'mochi'
+    })
+    expect(parseFirmwareName('VVR_Receiver_Fox_Dongle_2309f8b.uf2')?.board).toBe('Fox Dongle')
+    // Numeric board tokens that are not commit hashes survive.
+    expect(parseFirmwareName('VVR_Receiver_Holyiot_22046.hex')?.board).toBe('Holyiot 22046')
+    expect(parseFirmwareName('VVR_Receiver_Styria_R1.uf2')?.board).toBe('Styria R1')
   })
 })
 
