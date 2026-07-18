@@ -132,6 +132,7 @@ export const en = {
   'home.receiver.body': 'Check your receiver and update it to match your trackers.',
   'home.wizard.title': 'Full Setup Guide',
   'home.wizard.body': 'Walk through the complete setup, step by step.',
+  'home.more': 'More tasks',
   'nav.home': 'Home',
 
   // Pairing flow
