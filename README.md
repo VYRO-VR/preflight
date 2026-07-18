@@ -18,8 +18,9 @@ tracking) — it does not replace it.
 6. **Mounting & assignment** – guidance + offline-cached docs.
 7. **Calibration** – button reference and reset walkthrough.
 8. **Firmware** – pick your board + build options in a dropdown and the app resolves the exact
-   file from the SlimeNRF CI's rolling `latest` release; guided manual update plus an opt-in
-   **advanced auto-flash** (gated behind a soft-brick warning).
+   file from the [VYRO-VR/Firmware](https://github.com/VYRO-VR/Firmware/releases) GitHub
+   releases; guided manual update plus an opt-in **advanced auto-flash** (gated behind a
+   soft-brick warning).
 9. **SteamVR integration** – verifies the SlimeVR OpenVR driver is registered.
 10. **Finish** – links (docs, firmware, Discord, store) + one-click diagnostics export.
 
@@ -95,6 +96,7 @@ should still be **validated against a running SlimeVR Server**, since that can't
 - Confirm the receiver dongle **VID/PID** and bootloader **volume labels** in `config.ts`
   (detection is best-effort; receivers vary, e.g. foxDongle).
 - Validate the live tracker feed against a real SlimeVR Server (especially the battery scale).
-- Firmware comes from the SlimeNRF CI's `latest` release (`FIRMWARE_REPO` in `config.ts`). Board
-  detection from the reported firmware string is best-effort — confirm which board/build options
-  VYRO's IBIS trackers ship so the right default is pre-selected.
+- Firmware comes from the GitHub releases of `VYRO-VR/Firmware` (`FIRMWARE_REPO` in `config.ts`);
+  the repo is still being set up, so the picker shows "not available yet" until the first release
+  is published. Board detection from the reported firmware string is best-effort — confirm which
+  board/build options VYRO's IBIS trackers ship so the right default is pre-selected.

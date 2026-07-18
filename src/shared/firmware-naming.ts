@@ -1,7 +1,7 @@
 // Pure helpers for the SlimeNRF firmware filename taxonomy.
 //
-// The firmware CI publishes one rolling `latest` release with ~200 assets whose
-// names encode every build option, e.g.
+// The firmware CI publishes releases whose assets encode every build option in
+// the filename, e.g.
 //   SlimeNRF_Tracker_TDMA_SW0_NoSleep_SPI_Mag_ProMicro.uf2
 //   SlimeNRF_Holyiot_Dongle_TDMA_Receiver.hex
 //

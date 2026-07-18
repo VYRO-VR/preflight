@@ -6,7 +6,7 @@ import { promisify } from 'util'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import {
-  FIRMWARE_RELEASE_API,
+  FIRMWARE_RELEASES_API,
   FIRMWARE_RECOMMENDED_MARKER,
   BOOTLOADER_VOLUME_LABELS
 } from '@shared/config'
@@ -34,6 +34,7 @@ interface GithubRelease {
   tag_name: string
   name: string | null
   body: string | null
+  draft: boolean
   prerelease: boolean
   published_at: string
   assets: GithubAsset[]
@@ -70,48 +71,63 @@ export function pickAsset(
 
 /**
  * Pick the recommended release: the first one explicitly marked recommended,
- * otherwise the newest non-prerelease release that ships a .uf2 asset.
+ * otherwise the newest non-prerelease release with flashable assets, otherwise
+ * the newest prerelease with flashable assets (so a repo that has only shipped
+ * prereleases so far still offers something to flash).
  */
 export function pickRecommended(releases: FirmwareRelease[]): FirmwareRelease | undefined {
   const marked = releases.find((r) => r.recommended && r.assets.length > 0)
   if (marked) return marked
-  return releases.find((r) => !r.prerelease && r.assets.length > 0)
+  return (
+    releases.find((r) => !r.prerelease && r.assets.length > 0) ??
+    releases.find((r) => r.assets.length > 0)
+  )
 }
 
 export async function getFirmwareCatalog(): Promise<FirmwareCatalog> {
   try {
-    const res = await fetch(FIRMWARE_RELEASE_API, {
+    // Newest releases first (GitHub's default order). One page is plenty —
+    // the picker only surfaces the recommended release's assets.
+    const res = await fetch(`${FIRMWARE_RELEASES_API}?per_page=30`, {
       headers: { Accept: 'application/vnd.github+json' }
     })
     if (res.status === 404) {
       return {
         configured: false,
-        source: FIRMWARE_RELEASE_API,
+        source: FIRMWARE_RELEASES_API,
         releases: [],
-        error: 'Firmware release is not available yet.'
+        error: 'Firmware repository is not available yet.'
       }
     }
     if (!res.ok) {
       return {
         configured: false,
-        source: FIRMWARE_RELEASE_API,
+        source: FIRMWARE_RELEASES_API,
         releases: [],
         error: `GitHub returned ${res.status}.`
       }
     }
-    // The CI publishes a single rolling release at the configured tag.
-    const release = mapRelease((await res.json()) as GithubRelease)
-    const releases = [release]
+    const releases = ((await res.json()) as GithubRelease[])
+      .filter((r) => !r.draft)
+      .map(mapRelease)
+    if (releases.length === 0) {
+      return {
+        configured: false,
+        source: FIRMWARE_RELEASES_API,
+        releases: [],
+        error: 'No firmware releases have been published yet.'
+      }
+    }
     return {
-      configured: release.assets.length > 0,
-      source: FIRMWARE_RELEASE_API,
+      configured: releases.some((r) => r.assets.length > 0),
+      source: FIRMWARE_RELEASES_API,
       recommended: pickRecommended(releases),
       releases
     }
   } catch (err) {
     return {
       configured: false,
-      source: FIRMWARE_RELEASE_API,
+      source: FIRMWARE_RELEASES_API,
       releases: [],
       error: err instanceof Error ? err.message : 'Network error fetching firmware.'
     }
