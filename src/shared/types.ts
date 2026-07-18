@@ -163,6 +163,57 @@ export interface FirmwareAsset {
   name: string
   downloadUrl: string
   sizeBytes: number
+  /** Structured fields decoded from the SlimeNRF filename, when it matches. */
+  parsed?: ParsedFirmware
+}
+
+// ---------------------------------------------------------------------------
+// Firmware filename taxonomy (SlimeNRF CI naming scheme)
+//
+// Asset names look like `SlimeNRF_Tracker_TDMA_SW0_NoSleep_SPI_Mag_ProMicro.uf2`
+// or `SlimeNRF_Holyiot_Dongle_TDMA_Receiver.hex`. Every option is an optional
+// token; whatever tokens are left after pulling the known options out form the
+// board name. See `@shared/firmware-naming`.
+// ---------------------------------------------------------------------------
+
+export type FirmwareKind = 'tracker' | 'receiver'
+/** Radio protocol — the receiver and trackers must use the same one. */
+export type FirmwareProtocol = 'standard' | 'tdma'
+export type FirmwareClock = 'default' | 'clk' | 'noclk'
+export type FirmwareBus = 'none' | 'i2c' | 'spi' | 'smspi'
+/** Build variant: the stock build or the JitingCat fork. */
+export type FirmwareFork = 'standard' | 'jitingcat'
+
+export interface ParsedFirmware {
+  kind: FirmwareKind
+  /** Human board name, e.g. "ProMicro", "SlimevrMini3 R6", "Holyiot Dongle". */
+  board: string
+  /** Normalized board key for grouping/equality, e.g. "promicro". */
+  boardKey: string
+  protocol: FirmwareProtocol
+  /** True when deep sleep is enabled (the default; `NoSleep` builds set false). */
+  sleep: boolean
+  /** True when the magnetometer is enabled. */
+  mag: boolean
+  clock: FirmwareClock
+  bus: FirmwareBus
+  /** True for `SW0` builds (alternate button/wake pin). */
+  sw0: boolean
+  fork: FirmwareFork
+  /** File extension without the dot: 'uf2' | 'hex' | 'zip'. */
+  ext: string
+}
+
+/** A user's firmware choice — board plus the option dimensions. */
+export interface FirmwareSelection {
+  boardKey: string
+  protocol: FirmwareProtocol
+  sleep: boolean
+  mag: boolean
+  clock: FirmwareClock
+  bus: FirmwareBus
+  sw0: boolean
+  fork: FirmwareFork
 }
 
 export interface FirmwareCatalog {
