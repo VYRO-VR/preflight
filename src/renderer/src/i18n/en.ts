@@ -189,6 +189,8 @@ export const en = {
     'No tracker in update mode detected yet — press the button {presses} times and it will show up here.',
   'fwupdate.trackers.flash': 'Flash to {drive}',
   'fwupdate.noasset': 'No matching firmware file is available in the latest release yet.',
+  'fwupdate.hexonly':
+    'This release only ships a raw .hex for this receiver, which can’t be flashed over USB. It needs a release with a DFU package (.zip) — or an SWD programmer.',
   'fwupdate.nonrfutil':
     'The hex/DFU flashing tool (nrfutil) isn’t bundled in this build yet, so this receiver can’t be updated automatically.',
   'fwupdate.ack': 'I understand updating may soft-brick the device and accept the risk.',

@@ -115,11 +115,20 @@ describe('resolveFirmware', () => {
     expect(asset?.name).toBe('VVR_Receiver_Fox_Dongle_f750a5b.uf2')
   })
 
-  it('prefers .uf2 over .hex if a board ever ships both', () => {
-    const both = ['VVR_Receiver_Both_abc1234.hex', 'VVR_Receiver_Both_abc1234.uf2'].map((name) =>
-      withParsed({ name, downloadUrl: 'u', sizeBytes: 1 })
-    )
-    expect(resolveFirmware(both)?.name).toBe('VVR_Receiver_Both_abc1234.uf2')
+  it('prefers auto-flashable formats when a board ships several', () => {
+    const wrap = (names: string[]) =>
+      names.map((name) => withParsed({ name, downloadUrl: 'u', sizeBytes: 1 }))
+    // .uf2 (drag & drop) beats everything.
+    expect(
+      resolveFirmware(wrap(['VVR_Receiver_Both_abc1234.hex', 'VVR_Receiver_Both_abc1234.uf2']))
+        ?.name
+    ).toBe('VVR_Receiver_Both_abc1234.uf2')
+    // .zip (DFU package, flashable via nrfutil) beats a raw .hex (SWD only).
+    expect(
+      resolveFirmware(
+        wrap(['VVR_Receiver_Holyiot_21017_abc1234.hex', 'VVR_Receiver_Holyiot_21017_abc1234.zip'])
+      )?.name
+    ).toBe('VVR_Receiver_Holyiot_21017_abc1234.zip')
   })
 
   it('returns undefined for no candidates', () => {

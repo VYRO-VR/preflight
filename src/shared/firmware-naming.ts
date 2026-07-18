@@ -77,13 +77,14 @@ export function candidatesFor(
 }
 
 /**
- * Resolve a board to its firmware file. A board normally has exactly one
- * asset; if a release ever ships several formats for one board, .uf2 (drag &
- * drop) wins over .hex/.zip (programmer needed).
+ * Resolve a board to its firmware file. When a release ships several formats
+ * for one board, prefer the ones the app can flash itself: .uf2 (drag & drop
+ * onto the bootloader drive), then .zip (Secure DFU package via nrfutil), then
+ * .hex last — a raw hex needs an SWD programmer.
  */
 export function resolveFirmware(candidates: FirmwareAsset[]): FirmwareAsset | undefined {
   const rank = (a: FirmwareAsset): number =>
-    a.parsed?.ext === 'uf2' ? 0 : a.parsed?.ext === 'hex' ? 1 : 2
+    a.parsed?.ext === 'uf2' ? 0 : a.parsed?.ext === 'zip' ? 1 : 2
   return [...candidates].sort((a, b) => rank(a) - rank(b))[0]
 }
 
