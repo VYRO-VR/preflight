@@ -18,6 +18,20 @@ const INFO_OUTPUT = [
   'Device address: 95CB23A0FDF7'
 ].join('\r\n')
 
+// Verbatim `info` output captured from a real FoxDongle33 (nRF52833).
+const REAL_INFO_OUTPUT = [
+  'FoxApplication FoxApplication FoxDongle33',
+  'SlimeVR-Tracker-nRF-Receiver 0.6.9+0 (Commit e6f498e1899d, Build 2026-05-02 21:22:33)',
+  'Repo: https://github.com/VYRO-VR/SlimeVR-Tracker-nRF-Receiver.git | Branch: dev | Author: Bris Ibis',
+  '',
+  'Board: foxdongle33_uf2',
+  'SOC: nrf52833',
+  'Target: foxdongle33_uf2/nrf52833',
+  '',
+  'Device address: 5986CE236A22',
+  'RF Channel: 84 (default)'
+].join('\r\n')
+
 describe('parseReceiverInfo', () => {
   it('extracts version, commit, build date, and board from the info banner', () => {
     const info = parseReceiverInfo(INFO_OUTPUT)
@@ -25,6 +39,14 @@ describe('parseReceiverInfo', () => {
     expect(info.commit).toBe('v1.2.0-4-gf750a5b')
     expect(info.buildDate).toBe('2026-07-18 15:56:12')
     expect(info.board).toBe('foxdongle_uf2/nrf52840')
+  })
+
+  it('parses real FoxDongle33 console output', () => {
+    const info = parseReceiverInfo(REAL_INFO_OUTPUT)
+    expect(info.firmwareVersion).toBe('0.6.9+0')
+    expect(info.commit).toBe('e6f498e1899d')
+    expect(info.buildDate).toBe('2026-05-02 21:22:33')
+    expect(info.board).toBe('foxdongle33_uf2/nrf52833')
   })
 
   it('handles a plain-hash commit', () => {

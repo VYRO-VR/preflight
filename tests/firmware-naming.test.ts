@@ -12,6 +12,7 @@ import type { FirmwareAsset } from '../src/shared/types'
 
 // The real asset list of a VYRO-VR/Firmware release.
 const REAL_NAMES = [
+  'VVR_Receiver_Fox_Dongle33_f750a5b.uf2',
   'VVR_Receiver_Fox_Dongle_f750a5b.uf2',
   'VVR_Receiver_Holyiot_21017_f750a5b.hex',
   'VVR_Receiver_ProMicro_f750a5b.uf2',
@@ -105,7 +106,13 @@ describe('board grouping', () => {
     expect(trackers).toContain('ProMicro Stacked I2C')
     expect(trackers).not.toContain('Fox Dongle') // that's a receiver
     const receivers = firmwareBoards(assets, 'receiver').map((b) => b.label)
-    expect(receivers).toEqual(['Fox Dongle', 'Holyiot 21017', 'ProMicro', 'Styria R1'])
+    expect(receivers).toEqual([
+      'Fox Dongle',
+      'Fox Dongle33',
+      'Holyiot 21017',
+      'ProMicro',
+      'Styria R1'
+    ])
   })
 })
 
@@ -153,6 +160,17 @@ describe('guessBoardKey', () => {
     expect(guessBoardKey('foxdongle_uf2/nrf52840', receivers)).toBe('fox_dongle')
     expect(guessBoardKey('holyiot_21017/nrf52840', receivers)).toBe('holyiot_21017')
     expect(guessBoardKey('styria_r1_uf2/nrf52840', receivers)).toBe('styria_r1')
+  })
+
+  it('distinguishes the Fox Dongle variants by exact board target', () => {
+    // nRF52833 variant must NOT fall back to the base (nRF52840) Fox Dongle.
+    expect(guessBoardKey('foxdongle33_uf2/nrf52833', receivers)).toBe('fox_dongle33')
+    expect(guessBoardKey('foxdongle_uf2/nrf52840', receivers)).toBe('fox_dongle')
+    // A board target with no matching asset suggests nothing — never a
+    // near-miss variant.
+    const withoutVariant = receivers.filter((b) => b.key !== 'fox_dongle33')
+    expect(guessBoardKey('foxdongle33_uf2/nrf52833', withoutVariant)).toBeUndefined()
+    expect(guessBoardKey('newboard_uf2/nrf52840', receivers)).toBeUndefined()
   })
 
   it('prefers the most specific board over a base-name prefix', () => {
