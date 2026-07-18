@@ -59,9 +59,10 @@ export const RECEIVER_USB_IDS: {
 ]
 
 // Mass-storage volume labels exposed by a tracker or receiver in UF2
-// bootloader mode. 'FOX-BOOT' is the Fox dongle receiver (confirmed on real
-// hardware); the others are common tracker bootloaders.
-export const BOOTLOADER_VOLUME_LABELS = ['NICENANO', 'SLIMEVRTRK', 'FOX-BOOT']
+// bootloader mode. Confirmed on real hardware: 'FOX-BOOT' (Fox dongle
+// receiver) and 'SLIMENRF' (Styria tracker). The others are common
+// bootloaders on other SlimeVR-compatible boards.
+export const BOOTLOADER_VOLUME_LABELS = ['NICENANO', 'SLIMEVRTRK', 'FOX-BOOT', 'SLIMENRF']
 
 // SlimeVR Server SolarXR WebSocket feed (same endpoint the SlimeVR GUI uses).
 export const SLIMEVR_WS_URL = 'ws://127.0.0.1:21110'
