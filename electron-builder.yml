@@ -30,22 +30,16 @@ win:
     - target: portable
       arch: [x64]
   icon: build/icon.ico
-  # Code-signing via Azure Trusted Signing (removes the SmartScreen "unknown
-  # publisher" warning). The four fields below are NOT secrets — they come from
-  # your Trusted Signing Account / Certificate Profile. Auth is supplied
-  # separately in CI via the AZURE_TENANT_ID / AZURE_CLIENT_ID /
-  # AZURE_CLIENT_SECRET env vars, which electron-builder reads directly.
-  #
-  # TODO(vyro): replace the <...> placeholders with the real values from your
-  # Azure Trusted Signing setup, then commit. Until they're filled in, builds
-  # remain unsigned (electron-builder skips signing if these aren't valid).
-  azureSignOptions:
-    publisherName: 'VYRO VR' # must match the certificate's CommonName (CN)
-    endpoint: 'https://<region>.codesigning.azure.net/' # your account's region endpoint
-    codeSigningAccountName: '<trusted-signing-account-name>'
-    certificateProfileName: '<certificate-profile-name>'
-    # fileDigest, timestampDigest (SHA256) and the RFC-3161 timestamp server
-    # (http://timestamp.acs.microsoft.com) use sensible defaults — no need to set.
+  # Windows code signing (removes the SmartScreen "unknown publisher" warning)
+  # is done via Azure Trusted Signing, but it is deliberately NOT configured
+  # here: putting `azureSignOptions` in this always-loaded config would make
+  # every Windows build attempt to sign — including local `build:win` and the
+  # unsigned branch artifacts from installer.yml — and fail when no Azure
+  # credentials are present. Instead the release workflows (release.yml /
+  # release-on-merge.yml) inject `win.azureSignOptions` via electron-builder
+  # `-c.win.azureSignOptions.*` CLI overrides, gated on the AZURE_* secrets
+  # being set. See those workflows and README.md for the required GitHub
+  # secrets/variables.
 nsis:
   oneClick: false
   perMachine: false

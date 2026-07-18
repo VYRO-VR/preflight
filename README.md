@@ -73,13 +73,20 @@ macOS `.dmg` from Linux). CI handles this with a per-OS matrix:
   installers as downloadable workflow artifacts without publishing a release.
 
 **Windows code signing** uses [Azure Trusted Signing](https://learn.microsoft.com/azure/trusted-signing/)
-to remove the SmartScreen "unknown publisher" warning. The non-secret signing identity
-(publisher name, endpoint, account, and certificate profile) lives in `electron-builder.yml`
-under `win.azureSignOptions`; CI authenticates with a service principal via three GitHub
-secrets: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`. The release workflows
-install the `TrustedSigning` PowerShell module on the Windows runner automatically. Until the
-`azureSignOptions` placeholders and secrets are filled in, Windows builds ship **unsigned** and
-still trigger SmartScreen.
+to remove the SmartScreen "unknown publisher" warning. It is **opt-in**: the release workflows
+inject the signing config only when the credentials below are present, so builds stay green
+(just unsigned) until it's configured. To turn it on, add these to the repo (Settings → Secrets
+and variables → Actions):
+
+- **Secrets** (service-principal auth): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`.
+- **Variables** (non-secret signing identity): `AZURE_PUBLISHER_NAME` (cert CommonName),
+  `AZURE_SIGN_ENDPOINT` (e.g. `https://eus.codesigning.azure.net/`), `AZURE_CODE_SIGNING_ACCOUNT`,
+  `AZURE_CERT_PROFILE`.
+
+Once `AZURE_TENANT_ID` is set, the release workflows (`release.yml`, `release-on-merge.yml`)
+install the `TrustedSigning` PowerShell module on the Windows runner and sign the `.exe`
+automatically — no code changes needed. Branch/dev builds (`installer.yml`, local `build:win`)
+are always unsigned.
 
 **macOS** signing/notarization is optional: add `CSC_LINK` + `CSC_KEY_PASSWORD` plus `APPLE_ID`
 + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID` to sign and notarize (avoids Gatekeeper

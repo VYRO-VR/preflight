@@ -22,6 +22,18 @@ jobs:
           - os: ubuntu-latest
             flag: --linux
     runs-on: ${{ matrix.os }}
+    env:
+      # Windows code signing via Azure Trusted Signing. Auth secrets + the
+      # non-secret signing identity (repo variables). When AZURE_TENANT_ID is
+      # empty (not configured), the Windows build ships UNSIGNED instead of
+      # failing — signing turns on automatically once these are set.
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_PUBLISHER_NAME: ${{ vars.AZURE_PUBLISHER_NAME }}
+      AZURE_SIGN_ENDPOINT: ${{ vars.AZURE_SIGN_ENDPOINT }}
+      AZURE_CODE_SIGNING_ACCOUNT: ${{ vars.AZURE_CODE_SIGNING_ACCOUNT }}
+      AZURE_CERT_PROFILE: ${{ vars.AZURE_CERT_PROFILE }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,20 +50,28 @@ jobs:
       - run: npm run build
       # Azure Trusted Signing (Windows) signs via the Invoke-TrustedSigning
       # cmdlet from the TrustedSigning PowerShell module, which isn't preinstalled
-      # on the runner. No-op on the mac/linux legs.
+      # on the runner. Only needed when signing is actually configured.
       - name: Install Trusted Signing module (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-latest' && env.AZURE_TENANT_ID != ''
         shell: pwsh
         run: Install-Module -Name TrustedSigning -Force -Repository PSGallery
-      - run: npx electron-builder ${{ matrix.flag }} --publish always
+      - name: Build & publish release
+        shell: bash
+        run: |
+          args=(${{ matrix.flag }} --publish always)
+          # Enable Windows signing only when the Azure credentials are present,
+          # so an unconfigured repo still produces a (unsigned) release.
+          if [[ "${{ matrix.os }}" == "windows-latest" && -n "$AZURE_TENANT_ID" ]]; then
+            args+=(
+              "-c.win.azureSignOptions.publisherName=$AZURE_PUBLISHER_NAME"
+              "-c.win.azureSignOptions.endpoint=$AZURE_SIGN_ENDPOINT"
+              "-c.win.azureSignOptions.codeSigningAccountName=$AZURE_CODE_SIGNING_ACCOUNT"
+              "-c.win.azureSignOptions.certificateProfileName=$AZURE_CERT_PROFILE"
+            )
+          fi
+          npx electron-builder "${args[@]}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Windows code signing via Azure Trusted Signing (removes SmartScreen
-          # warnings). The non-secret signing identity lives in electron-builder.yml;
-          # these three are the CI auth for the signing service principal.
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           # macOS notarization (optional): set these to notarize the mac build.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
