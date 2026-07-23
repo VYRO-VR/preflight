@@ -36,6 +36,20 @@ jobs:
           python-version: '3.11'
       - run: npm ci
       - run: npm run build
+      # Bundle Nordic's nrfutil launcher so the app can flash hex/DFU
+      # receivers (e.g. HolyIOT) out of the box. The app installs the `device`
+      # command plugin itself on first use; see resources/nrfutil/README.md.
+      - name: Fetch nrfutil
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            Windows) url="https://developer.nordicsemi.com/.pc-tools/nrfutil/x64-windows/nrfutil.exe"; out="resources/nrfutil/nrfutil.exe" ;;
+            macOS)   url="https://developer.nordicsemi.com/.pc-tools/nrfutil/universal-osx/nrfutil"; out="resources/nrfutil/nrfutil" ;;
+            *)       url="https://developer.nordicsemi.com/.pc-tools/nrfutil/x64-linux/nrfutil"; out="resources/nrfutil/nrfutil" ;;
+          esac
+          curl -fsSL --retry 3 -o "$out" "$url"
+          chmod +x "$out"
+
       # Code signing / notarization is optional, but the CSC_* variables must
       # only exist when the secrets are actually set: electron-builder treats a
       # present-but-empty CSC_LINK as a certificate file path on macOS and dies

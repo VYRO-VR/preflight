@@ -4,20 +4,26 @@ Hex / DFU receivers (e.g. HolyIOT) are flashed with Nordic's `nrfutil` — the
 same engine nRF Connect Programmer uses. The binary is **not** committed to the
 repo because it is large and platform-specific.
 
-## How to provide it
+## How it is provided
 
-Place the executable in this folder before packaging:
+The installer/release CI workflows download the binary automatically (see the
+"Fetch nrfutil" step in `.github/workflows/installer.yml`, `release.yml`, and
+`release-on-merge.yml`) from Nordic's official distribution:
+
+- Windows: `https://developer.nordicsemi.com/.pc-tools/nrfutil/x64-windows/nrfutil.exe`
+- macOS: `https://developer.nordicsemi.com/.pc-tools/nrfutil/universal-osx/nrfutil`
+- Linux: `https://developer.nordicsemi.com/.pc-tools/nrfutil/x64-linux/nrfutil`
+
+For a local packaging run, download the matching binary yourself into this
+folder first:
 
 - Windows: `resources/nrfutil/nrfutil.exe`
 - macOS / Linux: `resources/nrfutil/nrfutil`
 
-Then install the `device` command it needs:
-
-```
-nrfutil install device
-```
-
-(The `nrfutil-device` plugin must sit alongside the binary as nrfutil expects.)
+Only the launcher binary is needed. nrfutil's `device` command is a plugin,
+and the app installs it on demand (`nrfutil install device`) the first time it
+flashes — which requires network access, but so does downloading the firmware,
+so this adds no new requirement.
 
 The app resolves the binary at runtime in this order:
 
