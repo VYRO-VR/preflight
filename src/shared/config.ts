@@ -48,14 +48,20 @@ export const RECEIVER_USB_IDS: {
   label: string
   flashMethod: ReceiverFlashMethod
 }[] = [
-  { vendorId: '1209', productId: '7690', label: 'foxDongle / SlimeVR nRF receiver', flashMethod: 'uf2' },
+  // All receivers built from VYRO-VR/SlimeVR-Tracker-nRF-Receiver share
+  // VID 0x1209 / PID 0x7690 (set in the firmware's prj.conf) — boards only
+  // differ in their USB product string. That includes the HolyIOT 21017, so it
+  // is detected by this entry; its per-asset flash method resolves to
+  // 'dfu-zip' in the update flow because its release asset is a Secure DFU
+  // .zip, not a .uf2. The `flashMethod` here is only the default for ports
+  // whose firmware can't be read.
+  { vendorId: '1209', productId: '7690', label: 'VYRO receiver (Fox / HolyIOT / SlimeNRF)', flashMethod: 'uf2' },
   { vendorId: '1915', productId: '520F', label: 'Nordic Semiconductor nRF52840 Dongle', flashMethod: 'uf2' },
   { vendorId: '1915', productId: '521F', label: 'Nordic nRF52840 (CDC)', flashMethod: 'uf2' },
   { vendorId: '2FE3', productId: '000C', label: 'nRF52840 USB Serial', flashMethod: 'uf2' },
   { vendorId: '239A', productId: '0029', label: 'Adafruit nRF52840 (UF2)', flashMethod: 'uf2' },
   { vendorId: '10C4', productId: 'EA60', label: 'Silicon Labs CP210x (UART receiver)', flashMethod: 'uf2' },
   { vendorId: '1A86', productId: '7523', label: 'CH340 (UART receiver)', flashMethod: 'uf2' }
-  // TODO: add HolyIOT receiver VID/PID(s) with flashMethod: 'dfu-zip' once confirmed.
 ]
 
 // Mass-storage volume labels exposed by a tracker or receiver in UF2
