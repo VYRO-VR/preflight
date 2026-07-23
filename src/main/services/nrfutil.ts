@@ -85,16 +85,62 @@ export function buildProgramArgs(opts: ProgramDfuOptions): string[] {
   return args
 }
 
+/**
+ * `nrfutil` is a launcher: subcommands like `device` are plugins that must be
+ * installed once (`nrfutil install device`). A freshly bundled binary has no
+ * plugins, so ensure the device command exists before first use — the install
+ * needs network access, which the caller already has (it just downloaded the
+ * firmware package).
+ */
+export const DEVICE_CHECK_ARGS = ['device', '--help']
+export const DEVICE_INSTALL_ARGS = ['install', 'device']
+
+async function ensureDeviceCommand(bin: string): Promise<{ ok: boolean; message?: string }> {
+  const check = await run(bin, DEVICE_CHECK_ARGS).catch(() => ({ code: -1, stdout: '', stderr: '' }))
+  if (check.code === 0) return { ok: true }
+  const install = await run(bin, DEVICE_INSTALL_ARGS).catch(() => ({
+    code: -1,
+    stdout: '',
+    stderr: 'Could not run nrfutil install.'
+  }))
+  if (install.code === 0) return { ok: true }
+  return {
+    ok: false,
+    message:
+      `nrfutil's device command is missing and could not be installed ` +
+      `(${(install.stderr || install.stdout).trim() || `exit code ${install.code}`}).`
+  }
+}
+
+// After the receiver's `dfu` console command, the bootloader takes a moment to
+// re-enumerate on USB — programming immediately races it. Retry a failed
+// program a few times so slow enumeration doesn't surface as a user error.
+const PROGRAM_ATTEMPTS = 4
+const PROGRAM_RETRY_DELAY_MS = 2500
+
 export async function programDfuPackage(opts: ProgramDfuOptions): Promise<FlashResult> {
   const bin = await resolveNrfutil()
   if (!bin) {
     return { ok: false, message: 'nrfutil binary not found.' }
   }
-  const { code, stderr } = await run(bin, buildProgramArgs(opts))
-  if (code === 0) {
-    return { ok: true, message: 'Receiver firmware updated successfully.' }
+  const device = await ensureDeviceCommand(bin)
+  if (!device.ok) {
+    return { ok: false, message: device.message ?? 'nrfutil device command unavailable.' }
   }
-  return { ok: false, message: stderr.trim() || `nrfutil exited with code ${code}.` }
+
+  let lastError = ''
+  for (let attempt = 1; attempt <= PROGRAM_ATTEMPTS; attempt++) {
+    const { code, stdout, stderr } = await run(bin, buildProgramArgs(opts))
+    if (code === 0) {
+      return { ok: true, message: 'Receiver firmware updated successfully.' }
+    }
+    // nrfutil reports errors on stderr or stdout depending on version.
+    lastError = (stderr.trim() || stdout.trim() || `nrfutil exited with code ${code}.`).trim()
+    if (attempt < PROGRAM_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, PROGRAM_RETRY_DELAY_MS))
+    }
+  }
+  return { ok: false, message: lastError }
 }
 
 function run(bin: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {

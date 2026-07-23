@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { parseReceiverInfo } from '../src/main/services/receiver-protocol'
 import { pickAsset } from '../src/main/services/firmware'
-import { buildProgramArgs, nrfutilCandidates } from '../src/main/services/nrfutil'
+import {
+  buildProgramArgs,
+  nrfutilCandidates,
+  DEVICE_CHECK_ARGS,
+  DEVICE_INSTALL_ARGS
+} from '../src/main/services/nrfutil'
 import { commitToken, commitsEqual, matchToLatest } from '../src/shared/firmware-match'
 import type { FirmwareRelease } from '../src/shared/types'
 
@@ -136,6 +141,12 @@ describe('nrfutil command', () => {
   })
   it('adds the serial number when provided', () => {
     expect(buildProgramArgs({ packagePath: 'a.zip', serialNumber: 'ABC123' })).toContain('ABC123')
+  })
+  it('checks and installs the device command plugin by its nrfutil launcher names', () => {
+    // `nrfutil device …` only works after `nrfutil install device`; the
+    // command names are part of nrfutil's CLI contract.
+    expect(DEVICE_CHECK_ARGS[0]).toBe('device')
+    expect(DEVICE_INSTALL_ARGS).toEqual(['install', 'device'])
   })
   it('honours the VYRO_NRFUTIL_PATH override first', () => {
     const prev = process.env.VYRO_NRFUTIL_PATH
