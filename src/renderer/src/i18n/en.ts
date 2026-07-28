@@ -65,7 +65,8 @@ export const en = {
   'step.firmware.warning':
     'Firmware updates can soft-brick a tracker. Only update if you are told to, and never disconnect mid-flash.',
   'step.firmware.flash': 'Flash to {drive}',
-  'step.firmware.nodrive': 'No tracker in DFU mode detected. Press the button 5 times to enter DFU.',
+  'step.firmware.nodrive':
+    'No tracker in DFU mode detected. Press the button 5 times to enter DFU.',
 
   // Firmware picker (board → exact file; every option is baked into the build)
   'fw.pick.board': 'Your tracker board',
@@ -204,5 +205,38 @@ export const en = {
   'fwupdate.progress.nrfutil': 'Flashing with nrfutil…',
 
   'links.discord': 'VYRO VR Discord',
-  'links.slimevrDiscord': 'SlimeVR Discord'
+  'links.slimevrDiscord': 'SlimeVR Discord',
+
+  // Developer panel (hidden corner button — internal production tooling)
+  'dev.open': 'Developer tools',
+  'dev.title': 'Developer Tools',
+  'dev.subtitle': 'Internal production utilities — not needed for normal setup.',
+  'dev.bulkflash.title': 'Bulk Flash Mochis',
+  'dev.bulkflash.body':
+    'Flashes the bundled bootloader onto Mochi boards over the J-Link pin fixture. Press the pins onto a board, wait for the OK, lift it off, and repeat — the loop re-arms for each next board automatically.',
+  'dev.bulkflash.count': 'boards flashed',
+  'dev.bulkflash.start': 'Start bulk flash',
+  'dev.bulkflash.stop': 'Stop',
+  'dev.bulkflash.log': 'Output log',
+  'dev.bulkflash.log.empty': 'Output will appear here once the loop starts.',
+  'dev.phase.idle': 'Stopped',
+  'dev.phase.setup': 'Preparing…',
+  'dev.phase.waiting': 'Waiting for a board on the pins…',
+  'dev.phase.flashing': 'Flashing…',
+  'dev.phase.recovering': 'Recovering protected chip…',
+  'dev.phase.cooldown': 'Flashed — settling…',
+  'dev.phase.remove': 'Done — remove the board',
+  'dev.msg.ready': 'Ready. Press the pin fixture onto a board to program it.',
+  'dev.msg.protected': 'Protected chip detected — recovering (unlock + mass erase)…',
+  'dev.msg.recovered': 'Recovered and programmed with verification.',
+  'dev.msg.recoverfailed': 'Recover failed — check the fixture contact and try again.',
+  'dev.msg.removed': 'Board removed. Ready for the next one…',
+  'dev.msg.stuckhint':
+    'Still waiting — check that the J-Link is plugged in and its drivers are installed.',
+  'dev.msg.nonrfutil': 'nrfutil was not found (not bundled in this build, and not on PATH).',
+  'dev.msg.nodeviceplugin':
+    'Couldn’t install nrfutil’s device command — it needs internet access once.',
+  'dev.msg.nohex': 'The bundled bootloader hex is missing from this build.',
+  'dev.msg.ok': 'OK ✅ board #{count} flashed in {seconds}s',
+  'dev.msg.stopped': 'Stopped — {count} board(s) flashed this session.'
 }

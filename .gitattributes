@@ -1,0 +1,3 @@
+# Intel HEX images are line-oriented records with checksums — keep them
+# byte-for-byte as committed (no CRLF normalization on checkout).
+*.hex -text

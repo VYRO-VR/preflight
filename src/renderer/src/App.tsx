@@ -8,8 +8,9 @@ import { PairingFlow } from './flows/PairingFlow'
 import { CalibrateFlow } from './flows/CalibrateFlow'
 import { TroubleshootFlow } from './flows/TroubleshootFlow'
 import { FirmwareUpdateFlow } from './flows/FirmwareUpdateFlow'
+import { DevFlow } from './flows/DevFlow'
 
-type View = 'home' | 'wizard' | 'pair' | 'calibrate' | 'troubleshoot' | 'receiver'
+type View = 'home' | 'wizard' | 'pair' | 'calibrate' | 'troubleshoot' | 'receiver' | 'dev'
 
 export default function App() {
   const init = useAppStore((s) => s.init)
@@ -30,20 +31,21 @@ export default function App() {
   }, [init])
 
   if (!ready) {
-    return (
-      <div className="flex h-full items-center justify-center text-slate-500">Loading…</div>
-    )
+    return <div className="flex h-full items-center justify-center text-slate-500">Loading…</div>
   }
 
   const goHome = (): void => setView('home')
 
   if (view === 'home') {
-    return <HomeScreen onSelect={(action: HomeAction) => setView(action)} />
+    return (
+      <HomeScreen onSelect={(action: HomeAction) => setView(action)} onDev={() => setView('dev')} />
+    )
   }
   if (view === 'pair') return <PairingFlow onExit={goHome} />
   if (view === 'calibrate') return <CalibrateFlow onExit={goHome} />
   if (view === 'troubleshoot') return <TroubleshootFlow onExit={goHome} />
   if (view === 'receiver') return <FirmwareUpdateFlow onExit={goHome} />
+  if (view === 'dev') return <DevFlow onExit={goHome} />
 
   const Step = STEPS[index].Component
   const currentId = STEPS[index].id
@@ -62,10 +64,7 @@ export default function App() {
         <div className="px-5 py-5">
           <div className="text-sm font-bold tracking-wide text-brand-400">VYRO VR</div>
           <div className="text-xs text-slate-500">{t('app.title')}</div>
-          <button
-            onClick={goHome}
-            className="mt-2 text-xs text-slate-400 hover:text-brand-300"
-          >
+          <button onClick={goHome} className="mt-2 text-xs text-slate-400 hover:text-brand-300">
             ← {t('nav.home')}
           </button>
         </div>

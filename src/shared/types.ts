@@ -227,6 +227,47 @@ export interface FlashResult {
 }
 
 // ---------------------------------------------------------------------------
+// Developer bulk flash (pin-fixture bootloader programming over J-Link)
+// ---------------------------------------------------------------------------
+
+/** Where the bulk-flash loop currently is. Drives the panel's status line. */
+export type BulkFlashPhase =
+  | 'idle'
+  | 'setup'
+  | 'waiting'
+  | 'flashing'
+  | 'recovering'
+  | 'cooldown'
+  | 'remove'
+
+/**
+ * Stable message codes for log lines — the renderer maps each to a translated
+ * string, keeping the log clean and localisable. Raw nrfutil output only ever
+ * travels in the optional `detail` field.
+ */
+export type BulkFlashLogCode =
+  | 'ready'
+  | 'protected'
+  | 'recovered'
+  | 'recover-failed'
+  | 'removed'
+  | 'stuck-hint'
+  | 'nrfutil-missing'
+  | 'device-plugin-missing'
+  | 'hex-missing'
+
+/**
+ * Events streamed while the bulk-flash loop runs. The idle retry storm
+ * (~12 probes/sec while no board is on the pins) intentionally emits nothing —
+ * `waiting` is a single phase, not log spam.
+ */
+export type BulkFlashEvent =
+  | { type: 'phase'; phase: BulkFlashPhase }
+  | { type: 'log'; level: 'info' | 'success' | 'error'; code: BulkFlashLogCode; detail?: string }
+  | { type: 'flashed'; count: number; elapsedMs: number }
+  | { type: 'stopped'; count: number }
+
+// ---------------------------------------------------------------------------
 // Diagnostics
 // ---------------------------------------------------------------------------
 
@@ -306,5 +347,13 @@ export interface Api {
   app: {
     getVersion: () => Promise<string>
     onUpdateStatus: (cb: (status: string) => void) => () => void
+  }
+  dev: {
+    /** Start the bulk bootloader-flash loop (developer fixture workflow). */
+    bulkFlashStart: () => Promise<void>
+    /** Stop the loop, killing any in-flight nrfutil process. */
+    bulkFlashStop: () => Promise<void>
+    /** Subscribe to bulk-flash events. Returns an unsubscribe function. */
+    onBulkFlashEvent: (cb: (event: BulkFlashEvent) => void) => () => void
   }
 }
