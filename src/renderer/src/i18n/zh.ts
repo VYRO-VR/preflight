@@ -1,0 +1,202 @@
+// Simplified Chinese translation — falls back to English for missing keys.
+export const zh: Record<string, string> = {
+  'app.title': 'VYRO VR Preflight',
+  'app.subtitle': '几分钟内完成 IBIS 追踪器的设置。',
+
+  'nav.back': '上一步',
+  'nav.next': '下一步',
+  'nav.recheck': '重新检测',
+  'nav.finish': '完成',
+  'nav.skip': '暂时跳过',
+
+  'status.pass': '就绪',
+  'status.warn': '注意',
+  'status.fail': '需要处理',
+  'status.running': '检测中…',
+  'status.pending': '未检测',
+
+  'step.welcome.title': '欢迎',
+  'step.welcome.body': '选择您的追踪器套装，以便定制设置步骤。',
+  'step.welcome.trackers': '{count} 个追踪器',
+
+  'step.system.title': '系统要求',
+  'step.system.os': '操作系统',
+  'step.system.arch': '架构',
+  'step.system.memory': '内存',
+  'step.system.admin': '管理员权限',
+
+  'step.software.title': '所需软件',
+  'step.software.steamvr': 'SteamVR',
+  'step.software.slimevr': 'SlimeVR Server',
+  'step.software.install': '安装',
+  'step.software.getslimevr': '获取 SlimeVR',
+  'step.software.installed': '已安装',
+  'step.software.missing': '未找到',
+  'step.software.running': '运行中',
+  'step.software.notrunning': '未找到或未运行',
+  'step.software.slimevr.hint': '请先安装并启动 SlimeVR Server（Steam 版或独立版），再继续。',
+
+  'step.receiver.title': '连接接收器',
+  'step.receiver.body': '连接接收器，并将其放置在游玩区域上方。',
+  'step.receiver.cable.title': '我已将接收器插入延长线。',
+  'step.receiver.cable.body':
+    '请将接收器接到随附的延长线上，再插入电脑——切勿直接插在机箱上。这是稳定追踪的必要条件，也是继续的前提。',
+  'step.receiver.detected': '接收器',
+  'step.receiver.notdetected': '未能自动检测到接收器',
+  'step.receiver.notdetected.hint':
+    '接收器种类繁多（foxDongle、Nordic 接收器等），我们无法总能识别您的型号。如果追踪器能在 SlimeVR Server 中显示，说明接收器工作正常——请继续下一步。',
+
+  'step.trackers.title': '开启追踪器',
+  'step.trackers.body': '按一次每个追踪器的按钮将其开机，它们会显示在下方。',
+  'step.trackers.online': '{expected} 个追踪器中已有 {online} 个在线',
+  'step.trackers.waiting': '正在等待 SlimeVR Server…',
+
+  'step.mounting.title': '佩戴与部位分配',
+  'step.calibration.title': '校准',
+  'step.calibration.buttons': '按钮说明',
+  'step.calibration.vyrodocs': '打开 VYRO VR 文档',
+  'step.calibration.docs': '打开 smol-slime 文档',
+
+  'step.firmware.title': '固件',
+  'step.firmware.recommended': '推荐版本',
+  'step.firmware.notconfigured': '固件更新暂不可用。',
+  'step.firmware.guided': '引导更新',
+  'step.firmware.advanced': '高级：自动刷写',
+  'step.firmware.warning':
+    '固件更新有可能使追踪器变砖。除非有人明确要求，请勿更新，并且切勿在刷写过程中断开连接。',
+  'step.firmware.flash': '刷写到 {drive}',
+  'step.firmware.nodrive': '未检测到处于 DFU 模式的追踪器。连按 5 次按钮进入 DFU 模式。',
+
+  // Firmware picker (board → exact file; every option is baked into the build)
+  'fw.pick.board': '您的追踪器主板',
+  'fw.pick.board.receiver': '您的接收器主板',
+  'fw.pick.detected': '检测到 {board}——如果不正确，请在下方更改。',
+  'fw.pick.file': '固件文件',
+  'fw.pick.none': '没有与该选择匹配的固件文件。',
+  'fw.pick.download': '下载 {name}',
+
+  'step.steamvr.title': 'SteamVR 集成',
+  'step.steamvr.driver': 'SlimeVR SteamVR 驱动',
+  'step.steamvr.registered': '驱动已注册',
+  'step.steamvr.missing': '驱动未注册',
+
+  'step.finish.title': '大功告成！',
+  'step.finish.body': '您已准备好进行全身追踪。下面是一些实用链接。',
+  'step.finish.diagnostics': '导出诊断报告',
+  'step.finish.diagnostics.hint': '保存一份报告，方便发给客服或在 Discord 上分享。',
+
+  'links.docs': '文档',
+  'links.firmware': '固件仓库',
+  'links.store': '商店',
+
+  // Home / launcher
+  'home.title': '您想做什么？',
+  'home.subtitle': '选择一项任务——我们会一步步引导您完成。',
+  'home.pair.title': '配对新追踪器',
+  'home.pair.body': '几步操作即可将追踪器连接到接收器。',
+  'home.calibrate.title': '校准追踪器',
+  'home.calibrate.body': '快速校准，获得精准追踪。',
+  'home.troubleshoot.title': '排查连接问题',
+  'home.troubleshoot.body': '检查您的设置并修复常见问题。',
+  'home.receiver.title': '更新固件',
+  'home.receiver.body': '为接收器和追踪器安装最新固件。',
+  'home.wizard.title': '完整设置向导',
+  'home.wizard.body': '逐步完成完整的设置流程。',
+  'home.more': '更多任务',
+  'nav.home': '主页',
+
+  // Pairing flow
+  'pair.title': '配对新追踪器',
+  'pair.connect.title': '正在连接接收器',
+  'pair.connect.searching': '正在寻找接收器…',
+  'pair.connect.found': '已找到接收器',
+  'pair.connect.choose': '找到多个接收器——请选择要配对的那一个：',
+  'pair.connect.none.title': '未找到接收器',
+  'pair.connect.none.body': '请使用随附的 USB 延长线将接收器插入电脑，然后重试。',
+  'pair.connect.retry': '重新搜索',
+  'pair.connect.use': '使用此接收器',
+  'pair.firmware.note': '提示：追踪器与接收器必须使用相同的固件版本，否则无法配对。',
+  'pair.listen.title': '让追踪器进入配对模式',
+  'pair.listen.instruction': '按追踪器的按钮 {presses} 次。LED 会以每秒一次的频率闪烁蓝光。',
+  'pair.listen.waiting': '正在监听追踪器…',
+  'pair.listen.timeout':
+    '仍未发现追踪器。请确认 LED 每秒闪烁一次蓝光，然后再按 {presses} 次按钮。',
+  'pair.paired.title': '新追踪器配对成功！🎉',
+  'pair.paired.count': '本次已配对 {count} 个',
+  'pair.paired.another': '再配对一个',
+  'pair.done': '完成',
+  'pair.error.title': '出了点问题',
+
+  // Calibrate flow
+  'calibrate.title': '校准追踪器',
+  'calibrate.intro':
+    '将每个追踪器平放并保持静止，然后按其按钮两次——LED 会循环显示彩虹色直至校准完成。之后保持 I 字站姿，在 SlimeVR Server 中执行完整重置。',
+  'calibrate.buttons': '按钮说明',
+
+  // Troubleshoot flow
+  'troubleshoot.title': '排查连接问题',
+  'troubleshoot.intro': '快速检查最常见的问题。',
+  'troubleshoot.receiver': '接收器已连接',
+  'troubleshoot.receiver.fail': '未检测到接收器——请通过 USB 延长线插入。',
+  'troubleshoot.server': 'SlimeVR Server',
+  'troubleshoot.server.fail': '未连接——请启动 SlimeVR Server 后重新检测。',
+  'troubleshoot.trackers': '追踪器在线',
+  'troubleshoot.trackers.fail': '尚未发现任何追踪器——请将其开机，或通过“配对新追踪器”进行配对。',
+  'troubleshoot.recheck': '重新检测',
+
+  // Firmware update page
+  'fwupdate.title': '固件更新',
+  'fwupdate.latest': '最新固件',
+  'fwupdate.latest.loading': '正在检查最新固件版本…',
+  'fwupdate.latest.error': '无法访问固件发布页——请检查网络连接。',
+  'fwupdate.latest.receiver': '接收器构建',
+  'fwupdate.latest.tracker': '追踪器构建',
+  'fwupdate.latest.view': '查看更新说明',
+  'fwupdate.receiver.section': '接收器',
+  'fwupdate.receiver.searching': '正在寻找接收器…',
+  'fwupdate.receiver.choose': '找到多个接收器——请选择一个：',
+  'fwupdate.receiver.use': '使用此接收器',
+  'fwupdate.receiver.reading': '正在读取接收器固件…',
+  'fwupdate.receiver.version': '版本',
+  'fwupdate.receiver.commit': '提交',
+  'fwupdate.receiver.builddate': '构建时间',
+  'fwupdate.receiver.board': '主板',
+  'fwupdate.receiver.unknownfw': '无法读取固件信息',
+  'fwupdate.receiver.unknownfw.hint':
+    '接收器没有响应 info 命令。请拔下并重新插入，然后重新搜索。非常旧的固件无法报告版本——在下方更新同样可以解决这个问题。',
+  'fwupdate.receiver.showconsole': '控制台输出',
+  'fwupdate.status': '状态',
+  'fwupdate.uptodate': '已是最新',
+  'fwupdate.outdated': '有可用更新',
+  'fwupdate.outdated.detail': '已安装 {current}，最新为 {latest}。',
+  'fwupdate.unknown': '无法检查——您仍可在下方更新。',
+  'fwupdate.rescan': '重新搜索',
+  'fwupdate.reinstall': '重新安装或更换固件',
+  'fwupdate.trackers.section': '追踪器',
+  'fwupdate.trackers.none':
+    '没有在线的追踪器。请开启一个追踪器并确保 SlimeVR Server 正在运行，即可在此查看其固件。',
+  'fwupdate.trackers.unknownfw': '未知',
+  'fwupdate.trackers.update': '更新追踪器',
+  'fwupdate.trackers.step.connect': '用支持数据传输的 USB 线将追踪器连接到电脑。',
+  'fwupdate.trackers.step.dfu': '按其按钮 {presses} 次——它会显示为一个可移动磁盘。',
+  'fwupdate.trackers.step.flash': '将上方选择的固件文件刷写到该磁盘。',
+  'fwupdate.trackers.nodrive':
+    '尚未检测到处于更新模式的追踪器——按 {presses} 次按钮后，它会出现在这里。',
+  'fwupdate.trackers.flash': '刷写到 {drive}',
+  'fwupdate.noasset': '最新版本中还没有匹配的固件文件。',
+  'fwupdate.hexonly':
+    '此版本只为该接收器提供了原始 .hex 文件，无法通过 USB 刷写。需要包含 DFU 包（.zip）的版本——或使用 SWD 编程器。',
+  'fwupdate.nonrfutil':
+    '此构建尚未捆绑 hex/DFU 刷写工具（nrfutil），因此无法自动更新该接收器。',
+  'fwupdate.ack': '我了解更新可能导致设备变砖，并接受该风险。',
+  'fwupdate.update': '更新接收器',
+  'fwupdate.updating': '正在更新…',
+  'fwupdate.dontunplug': '更新完成前请勿拔出接收器。',
+  'fwupdate.nodrive': '接收器未显示为磁盘。请确认它已进入更新模式，然后重试。',
+  'fwupdate.progress.dfu': '正在让接收器进入更新模式…',
+  'fwupdate.progress.drive': '正在等待接收器显示为磁盘…',
+  'fwupdate.progress.nrfutil': '正在使用 nrfutil 刷写…',
+
+  'links.discord': 'VYRO VR Discord',
+  'links.slimevrDiscord': 'SlimeVR Discord'
+}
