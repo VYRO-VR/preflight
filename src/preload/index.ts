@@ -3,6 +3,7 @@ import type {
   Api,
   SlimeVrLiveState,
   AppSettings,
+  BulkFlashEvent,
   FlashRequest,
   PairingEvent,
   ReceiverDfuRequest
@@ -67,6 +68,15 @@ const api: Api = {
       const listener = (_e: unknown, status: string) => cb(status)
       ipcRenderer.on('app:update-status', listener)
       return () => ipcRenderer.removeListener('app:update-status', listener)
+    }
+  },
+  dev: {
+    bulkFlashStart: () => ipcRenderer.invoke('dev:bulk-flash-start'),
+    bulkFlashStop: () => ipcRenderer.invoke('dev:bulk-flash-stop'),
+    onBulkFlashEvent: (cb: (event: BulkFlashEvent) => void) => {
+      const listener = (_e: unknown, event: BulkFlashEvent) => cb(event)
+      ipcRenderer.on('dev:bulk-flash-event', listener)
+      return () => ipcRenderer.removeListener('dev:bulk-flash-event', listener)
     }
   }
 }

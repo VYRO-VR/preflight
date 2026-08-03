@@ -41,7 +41,7 @@ export function nrfutilCandidates(): string[] {
   return candidates
 }
 
-async function resolveNrfutil(): Promise<string | null> {
+export async function resolveNrfutil(): Promise<string | null> {
   for (const candidate of nrfutilCandidates()) {
     // The bare name is resolved via PATH at spawn time, so accept it as-is.
     if (!candidate.includes(path.sep)) return candidate
@@ -60,7 +60,7 @@ export async function nrfutilAvailable(): Promise<boolean> {
   if (!bin) return false
   if (bin === binaryName()) {
     // Only on PATH — confirm it actually runs.
-    return run(bin, ['--version']).then(
+    return runNrfutil(bin, ['--version']).then(
       (r) => r.code === 0,
       () => false
     )
@@ -73,17 +73,32 @@ export async function nrfutilAvailable(): Promise<boolean> {
  * can be unit-tested without a device present.
  */
 export function buildProgramArgs(opts: ProgramDfuOptions): string[] {
-  const args = [
-    'device',
-    'program',
-    '--firmware',
-    opts.packagePath,
-    '--traits',
-    'nordicDfu'
-  ]
+  const args = ['device', 'program', '--firmware', opts.packagePath, '--traits', 'nordicDfu']
   if (opts.serialNumber) args.push('--serial-number', opts.serialNumber)
   return args
 }
+
+export interface JlinkProgramOptions {
+  hexPath: string
+  /** `--options` value, e.g. `verify=VERIFY_NONE,reset=RESET_SYSTEM`. Omitted when absent. */
+  options?: string
+  /** `error` for quiet attempts; `info` when the output will be inspected. */
+  logLevel: 'error' | 'info'
+}
+
+/**
+ * Build the `nrfutil device program` arguments for SWD programming of a raw
+ * .hex over a J-Link probe (the bulk-flash fixture path). Pure, for tests.
+ */
+export function buildJlinkProgramArgs(opts: JlinkProgramOptions): string[] {
+  const args = ['device', 'program', '--traits', 'jlink', '--firmware', opts.hexPath]
+  if (opts.options) args.push('--options', opts.options)
+  args.push('--log-level', opts.logLevel)
+  return args
+}
+
+/** `nrfutil device recover` — unlock a protected chip via MASS ERASE. */
+export const JLINK_RECOVER_ARGS = ['device', 'recover', '--traits', 'jlink', '--log-level', 'error']
 
 /**
  * `nrfutil` is a launcher: subcommands like `device` are plugins that must be
@@ -95,10 +110,14 @@ export function buildProgramArgs(opts: ProgramDfuOptions): string[] {
 export const DEVICE_CHECK_ARGS = ['device', '--help']
 export const DEVICE_INSTALL_ARGS = ['install', 'device']
 
-async function ensureDeviceCommand(bin: string): Promise<{ ok: boolean; message?: string }> {
-  const check = await run(bin, DEVICE_CHECK_ARGS).catch(() => ({ code: -1, stdout: '', stderr: '' }))
+export async function ensureDeviceCommand(bin: string): Promise<{ ok: boolean; message?: string }> {
+  const check = await runNrfutil(bin, DEVICE_CHECK_ARGS).catch(() => ({
+    code: -1,
+    stdout: '',
+    stderr: ''
+  }))
   if (check.code === 0) return { ok: true }
-  const install = await run(bin, DEVICE_INSTALL_ARGS).catch(() => ({
+  const install = await runNrfutil(bin, DEVICE_INSTALL_ARGS).catch(() => ({
     code: -1,
     stdout: '',
     stderr: 'Could not run nrfutil install.'
@@ -130,7 +149,7 @@ export async function programDfuPackage(opts: ProgramDfuOptions): Promise<FlashR
 
   let lastError = ''
   for (let attempt = 1; attempt <= PROGRAM_ATTEMPTS; attempt++) {
-    const { code, stdout, stderr } = await run(bin, buildProgramArgs(opts))
+    const { code, stdout, stderr } = await runNrfutil(bin, buildProgramArgs(opts))
     if (code === 0) {
       return { ok: true, message: 'Receiver firmware updated successfully.' }
     }
@@ -143,11 +162,26 @@ export async function programDfuPackage(opts: ProgramDfuOptions): Promise<FlashR
   return { ok: false, message: lastError }
 }
 
-function run(bin: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+export interface NrfutilRunResult {
+  code: number
+  stdout: string
+  stderr: string
+}
+
+/**
+ * Spawn nrfutil and buffer its output. An optional AbortSignal kills the
+ * child mid-run (the bulk-flash loop's Stop button / app quit); an aborted
+ * spawn surfaces as a rejection, which callers treat as a failed attempt.
+ */
+export function runNrfutil(
+  bin: string,
+  args: string[],
+  signal?: AbortSignal
+): Promise<NrfutilRunResult> {
   return new Promise((resolve, reject) => {
     let stdout = ''
     let stderr = ''
-    const child = spawn(bin, args, { windowsHide: true })
+    const child = spawn(bin, args, { windowsHide: true, signal })
     child.stdout?.on('data', (d) => (stdout += d.toString()))
     child.stderr?.on('data', (d) => (stderr += d.toString()))
     child.on('error', reject)

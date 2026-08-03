@@ -1,4 +1,6 @@
 import { ipcMain, app, type BrowserWindow } from 'electron'
+import path from 'path'
+import { BULK_FLASH } from '@shared/config'
 import { getSystemInfo } from './services/system'
 import { getSteamVrInfo } from './services/steamvr'
 import { SlimeVrClient, getSlimeVrInstall } from './services/slimevr'
@@ -17,6 +19,7 @@ import {
   flashReceiverDfu
 } from './services/firmware'
 import { nrfutilAvailable } from './services/nrfutil'
+import { BulkFlashSession } from './services/bulk-flash'
 import { getDocPage, openExternal } from './services/docs'
 import { exportDiagnostics } from './services/diagnostics'
 import { getSettings, setSettings } from './services/settings'
@@ -29,7 +32,11 @@ import type { AppSettings, FlashRequest, ReceiverDfuRequest } from '@shared/type
  * particular taking the receiver out of pairing mode if the user quits while
  * the pairing screen is still active.
  */
-export function registerIpc(win: BrowserWindow): { slime: SlimeVrClient; receiver: ReceiverPairingClient } {
+export function registerIpc(win: BrowserWindow): {
+  slime: SlimeVrClient
+  receiver: ReceiverPairingClient
+  bulkFlash: BulkFlashSession
+} {
   const slime = new SlimeVrClient()
   slime.on('state', (state) => {
     if (!win.isDestroyed()) win.webContents.send('slimevr:live-state', state)
@@ -38,6 +45,16 @@ export function registerIpc(win: BrowserWindow): { slime: SlimeVrClient; receive
   const receiver = new ReceiverPairingClient()
   receiver.on('event', (event) => {
     if (!win.isDestroyed()) win.webContents.send('receiver:pairing-event', event)
+  })
+
+  // The developer bulk-flash loop programs the bundled bootloader hex, shipped
+  // as an extraResource in packaged builds and read from resources/ in dev.
+  const bulkFlashHex = app.isPackaged
+    ? path.join(process.resourcesPath, BULK_FLASH.hexResourceDir, BULK_FLASH.hexFileName)
+    : path.join(app.getAppPath(), 'resources', BULK_FLASH.hexResourceDir, BULK_FLASH.hexFileName)
+  const bulkFlash = new BulkFlashSession(bulkFlashHex)
+  bulkFlash.on('event', (event) => {
+    if (!win.isDestroyed()) win.webContents.send('dev:bulk-flash-event', event)
   })
 
   ipcMain.handle('system:get-info', () => getSystemInfo())
@@ -76,5 +93,8 @@ export function registerIpc(win: BrowserWindow): { slime: SlimeVrClient; receive
 
   ipcMain.handle('app:get-version', () => app.getVersion())
 
-  return { slime, receiver }
+  ipcMain.handle('dev:bulk-flash-start', () => bulkFlash.start())
+  ipcMain.handle('dev:bulk-flash-stop', () => bulkFlash.stop())
+
+  return { slime, receiver, bulkFlash }
 }

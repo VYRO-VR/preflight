@@ -55,12 +55,27 @@ export const RECEIVER_USB_IDS: {
   // 'dfu-zip' in the update flow because its release asset is a Secure DFU
   // .zip, not a .uf2. The `flashMethod` here is only the default for ports
   // whose firmware can't be read.
-  { vendorId: '1209', productId: '7690', label: 'VYRO receiver (Fox / HolyIOT / SlimeNRF)', flashMethod: 'uf2' },
-  { vendorId: '1915', productId: '520F', label: 'Nordic Semiconductor nRF52840 Dongle', flashMethod: 'uf2' },
+  {
+    vendorId: '1209',
+    productId: '7690',
+    label: 'VYRO receiver (Fox / HolyIOT / SlimeNRF)',
+    flashMethod: 'uf2'
+  },
+  {
+    vendorId: '1915',
+    productId: '520F',
+    label: 'Nordic Semiconductor nRF52840 Dongle',
+    flashMethod: 'uf2'
+  },
   { vendorId: '1915', productId: '521F', label: 'Nordic nRF52840 (CDC)', flashMethod: 'uf2' },
   { vendorId: '2FE3', productId: '000C', label: 'nRF52840 USB Serial', flashMethod: 'uf2' },
   { vendorId: '239A', productId: '0029', label: 'Adafruit nRF52840 (UF2)', flashMethod: 'uf2' },
-  { vendorId: '10C4', productId: 'EA60', label: 'Silicon Labs CP210x (UART receiver)', flashMethod: 'uf2' },
+  {
+    vendorId: '10C4',
+    productId: 'EA60',
+    label: 'Silicon Labs CP210x (UART receiver)',
+    flashMethod: 'uf2'
+  },
   { vendorId: '1A86', productId: '7523', label: 'CH340 (UART receiver)', flashMethod: 'uf2' }
 ]
 
@@ -157,13 +172,49 @@ export const RECEIVER_SERIAL = {
   boardRegex: /^target:\s*(\S+)/im
 }
 
+// Developer bulk flash — the pin-fixture bootloader programming loop behind
+// the hidden developer panel. Ported from VYRO's production `bootloader.ps1`:
+// nrfutil programs the bundled bootloader hex over J-Link (Tag-Connect pogo
+// pins) in an armed loop — press fixture → flash → lift → next board. All
+// tunables live here.
+export const BULK_FLASH = {
+  /** Folder under resources/ (dev) or process.resourcesPath (packaged). */
+  hexResourceDir: 'dev-firmware',
+  /** Combined bootloader + firmware image for the Mochi tracker (nRF52833). */
+  hexFileName: 'Mochi_Tracker_Combined.hex',
+  /** Fast path: skip verify for speed on fresh chips. */
+  programOptionsFast: 'verify=VERIFY_NONE,reset=RESET_SYSTEM',
+  /** Careful path, used right after a recover (unlock + mass erase). */
+  programOptionsVerify: 'verify=VERIFY_READ,reset=RESET_SYSTEM',
+  /** nrfutil output that means the chip's readback protection blocks access. */
+  protectionRegex:
+    /NotAvailableBecauseProtection|readback protection|access port is protected|APPROTECT|protected/i,
+  /** Retry interval while no board is on the pins. */
+  idlePollMs: 80,
+  /** Settle time after a successful flash before watching for removal. */
+  cooldownMs: 1200,
+  /** Poll interval while waiting for a flashed board to be lifted. */
+  removePollMs: 300,
+  /** Pause after a failed contact probe during the removal wait. */
+  removeFailurePollMs: 40,
+  /**
+   * Consecutive failed probes that count as "board removed". 1 re-arms on the
+   * first broken contact (fastest swap); raise to 2-3 if contact bounce ever
+   * double-counts a board.
+   */
+  removalFailureThreshold: 1,
+  /** How long a program attempt must run before the UI shows "flashing". */
+  flashingHintMs: 300,
+  /** Idle time before hinting that the J-Link may be missing/unplugged. */
+  stuckHintMs: 15000
+}
+
 /**
  * Extracts a build-date token (e.g. `2026-06-01`, `Jun  1 2026`) from any
  * firmware version/build string. Matches an ISO date or a C `__DATE__` style
  * date; returns the matched substring as-is so equal builds compare equal.
  */
-export const FIRMWARE_BUILD_DATE_REGEX =
-  /\d{4}-\d{2}-\d{2}|[A-Za-z]{3}\s+\d{1,2}\s+\d{4}/
+export const FIRMWARE_BUILD_DATE_REGEX = /\d{4}-\d{2}-\d{2}|[A-Za-z]{3}\s+\d{1,2}\s+\d{4}/
 
 export const LINKS = {
   store: 'https://vyrovr.com',

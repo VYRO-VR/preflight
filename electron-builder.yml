@@ -23,6 +23,11 @@ extraResources:
   - from: resources/nrfutil
     to: nrfutil
     filter: ['**/*']
+  # Bootloader hex flashed by the hidden developer bulk-flash panel (committed
+  # to the repo — see src/shared/config.ts BULK_FLASH).
+  - from: resources/dev-firmware
+    to: dev-firmware
+    filter: ['**/*']
 win:
   target:
     - target: nsis
