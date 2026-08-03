@@ -1,6 +1,10 @@
 appId: com.vyrovr.preflight
 productName: VYRO VR Preflight
 copyright: Copyright © 2026 VYRO VR
+# Wraps the Linux executable in a launcher that falls back to --no-sandbox
+# when Chromium's sandbox can't work (AppImage on Ubuntu 23.10+). No-op for
+# the .deb, whose postinst installs a setuid chrome-sandbox helper.
+afterPack: build/linux-sandbox-fallback.cjs
 directories:
   buildResources: build
   output: release

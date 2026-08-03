@@ -78,6 +78,18 @@ Code signing is optional but recommended. Provide `CSC_LINK` + `CSC_KEY_PASSWORD
 `APPLE_TEAM_ID` to notarize the macOS build (avoids Gatekeeper warnings). Unsigned builds work
 everywhere — macOS just needs a right-click → **Open** the first time.
 
+### Linux notes
+
+Prefer the **`.deb`** on Debian/Ubuntu — it installs Chromium's setuid sandbox helper, so the
+app runs fully sandboxed with no flags.
+
+The **AppImage** cannot carry a setuid helper (its FUSE mount strips the bit), and Ubuntu
+23.10+ additionally blocks the unprivileged-user-namespace sandbox via AppArmor, which used to
+crash the app at launch (`Trace/breakpoint trap`). The bundled launcher
+(`build/linux-sandbox-fallback.cjs`) now detects that situation and automatically relaunches
+with `--no-sandbox`; pass `--sandbox` to override. Never launch the app with `sudo` — root
+can't reach the user's X/Wayland session, so the window won't come up.
+
 > **Platform note:** the cross-platform builds run today, but the deeper hardware-detection
 > steps (USB receiver enumeration, Windows-version checks, drive-letter firmware flashing) are
 > currently Windows-only and degrade gracefully on macOS/Linux. The wizard, docs, live SlimeVR
