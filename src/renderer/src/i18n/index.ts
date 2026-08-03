@@ -1,13 +1,15 @@
 import { en } from './en'
+import { zh } from './zh'
 import { pt } from './pt'
 
 export type TranslationKey = keyof typeof en
-export type Locale = 'en' | 'pt'
+export type Locale = 'en' | 'zh' | 'pt'
 
-const dictionaries: Record<Locale, Record<string, string>> = { en, pt }
+const dictionaries: Record<Locale, Record<string, string>> = { en, zh, pt }
 
 export const SUPPORTED_LOCALES: { code: Locale; label: string }[] = [
   { code: 'en', label: 'English' },
+  { code: 'zh', label: '简体中文' },
   { code: 'pt', label: 'Português' }
 ]
 

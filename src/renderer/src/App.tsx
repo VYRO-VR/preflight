@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import { SUPPORTED_LOCALES, type Locale } from './i18n'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useAppStore } from './store/useAppStore'
 import { STEPS } from './wizard/steps'
 import { Button } from './components/Button'
+import { LanguageSelector } from './components/LanguageSelector'
 import { HomeScreen, type HomeAction } from './home/HomeScreen'
 import { PairingFlow } from './flows/PairingFlow'
 import { CalibrateFlow } from './flows/CalibrateFlow'
@@ -15,8 +15,6 @@ type View = 'home' | 'wizard' | 'pair' | 'calibrate' | 'troubleshoot' | 'receive
 export default function App() {
   const init = useAppStore((s) => s.init)
   const t = useAppStore((s) => s.t)
-  const locale = useAppStore((s) => s.locale)
-  const setLocale = useAppStore((s) => s.setLocale)
   const appVersion = useAppStore((s) => s.appVersion)
   const updateStatus = useAppStore((s) => s.updateStatus)
   const selectedProduct = useAppStore((s) => s.selectedProduct)
@@ -36,16 +34,27 @@ export default function App() {
 
   const goHome = (): void => setView('home')
 
+  // Every view renders inside a wrapper that pins the language selector to the
+  // top-right corner of the window.
+  const withChrome = (content: ReactNode): JSX.Element => (
+    <div className="relative h-full">
+      <div className="absolute right-4 top-3 z-50">
+        <LanguageSelector />
+      </div>
+      {content}
+    </div>
+  )
+
   if (view === 'home') {
-    return (
+    return withChrome(
       <HomeScreen onSelect={(action: HomeAction) => setView(action)} onDev={() => setView('dev')} />
     )
   }
-  if (view === 'pair') return <PairingFlow onExit={goHome} />
-  if (view === 'calibrate') return <CalibrateFlow onExit={goHome} />
-  if (view === 'troubleshoot') return <TroubleshootFlow onExit={goHome} />
-  if (view === 'receiver') return <FirmwareUpdateFlow onExit={goHome} />
-  if (view === 'dev') return <DevFlow onExit={goHome} />
+  if (view === 'pair') return withChrome(<PairingFlow onExit={goHome} />)
+  if (view === 'calibrate') return withChrome(<CalibrateFlow onExit={goHome} />)
+  if (view === 'troubleshoot') return withChrome(<TroubleshootFlow onExit={goHome} />)
+  if (view === 'receiver') return withChrome(<FirmwareUpdateFlow onExit={goHome} />)
+  if (view === 'dev') return withChrome(<DevFlow onExit={goHome} />)
 
   const Step = STEPS[index].Component
   const currentId = STEPS[index].id
@@ -57,7 +66,7 @@ export default function App() {
     (currentId !== 'welcome' || Boolean(selectedProduct)) &&
     (currentId !== 'receiver' || cableAcknowledged)
 
-  return (
+  return withChrome(
     <div className="flex h-full">
       {/* Left rail */}
       <aside className="flex w-64 shrink-0 flex-col border-r border-surface-border bg-surface-raised">
@@ -99,20 +108,7 @@ export default function App() {
           })}
         </nav>
         <div className="border-t border-surface-border px-5 py-3 text-xs text-slate-500">
-          <div className="flex items-center justify-between">
-            <select
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as Locale)}
-              className="rounded border border-surface-border bg-surface px-2 py-1 text-xs text-slate-300"
-            >
-              {SUPPORTED_LOCALES.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-            <span>v{appVersion}</span>
-          </div>
+          <span>v{appVersion}</span>
           {updateStatus && updateStatus !== 'none' && (
             <div className="mt-2 text-brand-300">Update: {updateStatus}</div>
           )}
