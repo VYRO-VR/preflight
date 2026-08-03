@@ -198,5 +198,36 @@ export const zh: Record<string, string> = {
   'fwupdate.progress.nrfutil': '正在使用 nrfutil 刷写…',
 
   'links.discord': 'VYRO VR Discord',
-  'links.slimevrDiscord': 'SlimeVR Discord'
+  'links.slimevrDiscord': 'SlimeVR Discord',
+
+  // Developer panel (hidden corner button — internal production tooling)
+  'dev.open': '开发者工具',
+  'dev.title': '开发者工具',
+  'dev.subtitle': '内部生产工具——正常设置无需使用。',
+  'dev.bulkflash.title': '批量刷写 Mochi',
+  'dev.bulkflash.body':
+    '通过 J-Link 针脚夹具将捆绑的引导程序刷写到 Mochi 主板上。将针脚压到主板上，等待 OK，取下主板并重复——循环会自动为下一块主板重新就绪。',
+  'dev.bulkflash.count': '块主板已刷写',
+  'dev.bulkflash.start': '开始批量刷写',
+  'dev.bulkflash.stop': '停止',
+  'dev.bulkflash.log': '输出日志',
+  'dev.bulkflash.log.empty': '循环开始后，输出会显示在这里。',
+  'dev.phase.idle': '已停止',
+  'dev.phase.setup': '准备中…',
+  'dev.phase.waiting': '等待针脚接触主板…',
+  'dev.phase.flashing': '刷写中…',
+  'dev.phase.recovering': '正在恢复受保护的芯片…',
+  'dev.phase.cooldown': '已刷写——稳定中…',
+  'dev.phase.remove': '完成——请取下主板',
+  'dev.msg.ready': '就绪。将针脚夹具压到主板上即可编程。',
+  'dev.msg.protected': '检测到受保护的芯片——正在恢复（解锁 + 全片擦除）…',
+  'dev.msg.recovered': '已恢复并完成带校验的编程。',
+  'dev.msg.recoverfailed': '恢复失败——请检查夹具接触后重试。',
+  'dev.msg.removed': '主板已取下。准备刷写下一块…',
+  'dev.msg.stuckhint': '仍在等待——请检查 J-Link 是否已插入并安装了驱动。',
+  'dev.msg.nonrfutil': '未找到 nrfutil（此构建未捆绑，PATH 中也没有）。',
+  'dev.msg.nodeviceplugin': '无法安装 nrfutil 的 device 命令——它需要联网一次。',
+  'dev.msg.nohex': '此构建缺少捆绑的引导程序 hex 文件。',
+  'dev.msg.ok': 'OK ✅ 第 {count} 块主板已刷写，用时 {seconds} 秒',
+  'dev.msg.stopped': '已停止——本次共刷写 {count} 块主板。'
 }

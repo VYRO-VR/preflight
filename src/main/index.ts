@@ -83,7 +83,7 @@ function createWindow(splash?: BrowserWindow): BrowserWindow {
 app.whenReady().then(() => {
   const splash = createSplashWindow()
   const win = createWindow(splash)
-  const { slime, receiver } = registerIpc(win)
+  const { slime, receiver, bulkFlash } = registerIpc(win)
 
   if (app.isPackaged) {
     initAutoUpdater(win)
@@ -100,6 +100,8 @@ app.whenReady().then(() => {
   app.on('before-quit', () => {
     slime.disconnect()
     receiver.stopPairing()
+    // Abort the developer bulk-flash loop so no nrfutil child outlives the app.
+    void bulkFlash.stop()
   })
 })
 

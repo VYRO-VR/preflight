@@ -153,5 +153,40 @@ export const pt: Record<string, string> = {
   'fwupdate.progress.drive': 'Aguardando o receptor aparecer como unidade…',
   'fwupdate.progress.nrfutil': 'Gravando com nrfutil…',
 
-  'links.slimevrDiscord': 'Discord SlimeVR'
+  'links.slimevrDiscord': 'Discord SlimeVR',
+
+  // Painel de desenvolvedor (botão oculto — ferramentas internas de produção)
+  'dev.open': 'Ferramentas de desenvolvedor',
+  'dev.title': 'Ferramentas de Desenvolvedor',
+  'dev.subtitle':
+    'Utilitários internos de produção — não são necessários para a configuração normal.',
+  'dev.bulkflash.title': 'Gravação em Massa de Mochis',
+  'dev.bulkflash.body':
+    'Grava o bootloader incluído nas placas Mochi pela fixação de pinos com J-Link. Pressione os pinos na placa, aguarde o OK, levante e repita — o ciclo se rearma automaticamente para a próxima placa.',
+  'dev.bulkflash.count': 'placas gravadas',
+  'dev.bulkflash.start': 'Iniciar gravação em massa',
+  'dev.bulkflash.stop': 'Parar',
+  'dev.bulkflash.log': 'Registro de saída',
+  'dev.bulkflash.log.empty': 'A saída aparecerá aqui quando o ciclo iniciar.',
+  'dev.phase.idle': 'Parado',
+  'dev.phase.setup': 'Preparando…',
+  'dev.phase.waiting': 'Aguardando uma placa nos pinos…',
+  'dev.phase.flashing': 'Gravando…',
+  'dev.phase.recovering': 'Recuperando chip protegido…',
+  'dev.phase.cooldown': 'Gravado — estabilizando…',
+  'dev.phase.remove': 'Pronto — remova a placa',
+  'dev.msg.ready': 'Pronto. Pressione a fixação de pinos numa placa para programá-la.',
+  'dev.msg.protected': 'Chip protegido detectado — recuperando (desbloqueio + apagamento total)…',
+  'dev.msg.recovered': 'Recuperado e programado com verificação.',
+  'dev.msg.recoverfailed':
+    'Falha na recuperação — verifique o contato dos pinos e tente novamente.',
+  'dev.msg.removed': 'Placa removida. Pronto para a próxima…',
+  'dev.msg.stuckhint':
+    'Ainda aguardando — verifique se o J-Link está conectado e com os drivers instalados.',
+  'dev.msg.nonrfutil': 'nrfutil não foi encontrado (não incluído nesta build, nem no PATH).',
+  'dev.msg.nodeviceplugin':
+    'Não foi possível instalar o comando device do nrfutil — é preciso internet uma vez.',
+  'dev.msg.nohex': 'O hex do bootloader incluído está ausente nesta build.',
+  'dev.msg.ok': 'OK ✅ placa nº {count} gravada em {seconds}s',
+  'dev.msg.stopped': 'Parado — {count} placa(s) gravada(s) nesta sessão.'
 }
