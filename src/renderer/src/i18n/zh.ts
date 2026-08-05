@@ -195,7 +195,7 @@ export const zh: Record<string, string> = {
   'fwupdate.nodrive': '接收器未显示为磁盘。请确认它已进入更新模式，然后重试。',
   'fwupdate.progress.dfu': '正在让接收器进入更新模式…',
   'fwupdate.progress.drive': '正在等待接收器显示为磁盘…',
-  'fwupdate.progress.nrfutil': '正在使用 nrfutil 刷写…',
+  'fwupdate.progress.nrfutil': '正在通过 USB 更新 — 等待接收器出现，最长可能需要一分钟…',
 
   'links.discord': 'VYRO VR Discord',
   'links.slimevrDiscord': 'SlimeVR Discord',

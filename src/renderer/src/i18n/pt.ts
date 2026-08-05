@@ -151,7 +151,8 @@ export const pt: Record<string, string> = {
     'O receptor não apareceu como unidade. Verifique se entrou no modo de atualização e tente novamente.',
   'fwupdate.progress.dfu': 'Colocando o receptor em modo de atualização…',
   'fwupdate.progress.drive': 'Aguardando o receptor aparecer como unidade…',
-  'fwupdate.progress.nrfutil': 'Gravando com nrfutil…',
+  'fwupdate.progress.nrfutil':
+    'Atualizando via USB — a espera pelo receptor pode levar até um minuto…',
 
   'links.slimevrDiscord': 'Discord SlimeVR',
 

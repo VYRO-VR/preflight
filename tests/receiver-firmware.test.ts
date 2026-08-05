@@ -4,6 +4,7 @@ import { pickAsset } from '../src/main/services/firmware'
 import {
   buildProgramArgs,
   nrfutilCandidates,
+  isNoDeviceError,
   DEVICE_CHECK_ARGS,
   DEVICE_INSTALL_ARGS
 } from '../src/main/services/nrfutil'
@@ -148,6 +149,21 @@ describe('nrfutil command', () => {
     expect(DEVICE_CHECK_ARGS[0]).toBe('device')
     expect(DEVICE_INSTALL_ARGS).toEqual(['install', 'device'])
   })
+  it('recognizes "no device yet" errors as retryable, others as fatal', () => {
+    // Verbatim from a customer report — device still re-enumerating after `dfu`.
+    expect(
+      isNoDeviceError('Error: No devices with requested serial number(s) or trait(s) found')
+    ).toBe(true)
+    expect(isNoDeviceError('No devices found')).toBe(true)
+    // Real failures must not be retried for 40 seconds.
+    expect(
+      isNoDeviceError(
+        'One or more program tasks failed: * E9EB95B69B5A: invalid Zip archive: Could not find EOCD (Generic)'
+      )
+    ).toBe(false)
+    expect(isNoDeviceError('nrfutil exited with code 1.')).toBe(false)
+  })
+
   it('honours the VYRO_NRFUTIL_PATH override first', () => {
     const prev = process.env.VYRO_NRFUTIL_PATH
     process.env.VYRO_NRFUTIL_PATH = '/custom/nrfutil'
