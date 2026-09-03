@@ -30,7 +30,7 @@ Standard Electron three-process split with a strict security boundary (`contextI
 
 - **`src/main/`** — Node/Electron main process. `index.ts` creates the splash + main windows and wires lifecycle. `ipc.ts` registers every `ipcMain.handle` channel. `services/` holds all the actual work (system/steamvr/slimevr/usb/receiver/firmware/nrfutil/docs/diagnostics/settings detection & I/O).
 - **`src/preload/index.ts`** — the ONLY bridge. It builds a typed `Api` object and exposes it as `window.api` via `contextBridge`. Every renderer→main call goes through here.
-- **`src/renderer/src/`** — React UI. `App.tsx` is a view switcher between a `HomeScreen` and five flows/wizard (`pair`/`calibrate`/`troubleshoot`/`receiver`/`wizard`). The 10-step wizard is data-driven from `wizard/steps.tsx`. Global state is a single Zustand store (`store/useAppStore.ts`).
+- **`src/renderer/src/`** — React UI. `App.tsx` is a view switcher between a `HomeScreen` and six flows/wizard (`pair`/`calibrate`/`senscal`/`troubleshoot`/`receiver`/`wizard`). The 10-step wizard is data-driven from `wizard/steps.tsx`. Global state is a single Zustand store (`store/useAppStore.ts`).
 - **`src/shared/`** — imported by all three processes via the `@shared/*` alias (configured in `electron.vite.config.ts`, `vitest.config.ts`, and both tsconfigs). `types.ts` defines the `Api` interface and every IPC payload type; `config.ts`, `firmware-naming.ts`, `firmware-match.ts` are pure logic.
 
 ### Adding an IPC endpoint
@@ -43,11 +43,19 @@ An endpoint touches four files in lockstep — keep them in sync or typecheck fa
 
 ### Streaming vs request/response
 
-Most channels are request/response (`invoke`/`handle`). Two are **long-lived event streams** pushed from main → renderer: `slimevr:live-state` (tracker feed) and `receiver:pairing-event`. `registerIpc` returns those long-lived clients (`SlimeVrClient`, `ReceiverPairingClient`) so `index.ts`'s `before-quit` can tear them down — critically, `stopPairing()` also takes the receiver *out* of pairing mode, which the renderer's own cleanup can't be relied on to flush during teardown. In the renderer, `store.init()` subscribes via `window.api.*.on...()` callbacks that return an unsubscribe function.
+Most channels are request/response (`invoke`/`handle`). Three are **long-lived event streams** pushed from main → renderer: `slimevr:live-state` (tracker feed), `receiver:pairing-event`, and `receiver:console-event`. `registerIpc` returns those long-lived clients (`SlimeVrClient`, `ReceiverPairingClient`, `ReceiverConsoleClient`) so `index.ts`'s `before-quit` can tear them down — critically, `stopPairing()` also takes the receiver *out* of pairing mode, which the renderer's own cleanup can't be relied on to flush during teardown. Pairing and the console both hold the receiver's serial port exclusively, so `ipc.ts` — the one place that owns both — refuses to start either while the other is running. In the renderer, `store.init()` subscribes via `window.api.*.on...()` callbacks that return an unsubscribe function.
 
 ### The SlimeVR live feed (SolarXR)
 
 `services/solarxr.ts` encodes a `StartDataFeed` request and decodes `DataFeedUpdate` frames over SlimeVR Server's WebSocket (`ws://127.0.0.1:21110`), using flatbuffers bindings from the `solarxr-protocol` GitHub dependency (built on `npm install`). Note the data shape: **battery / RSSI / firmware live on the device; body part / status live on each tracker** under that device. The codec has a roundtrip unit test but can only be truly validated against a running SlimeVR Server (not possible in CI).
+
+Re-sending `StartDataFeed` replaces the feed config for the connection, which is how `slimevr:set-feed-rate` works. The rate is app-wide, so it defaults to `SLIMEVR_FEED_RATE_MS.idle` (200 ms) and only views that animate orientation — the 3D preview, the sens-cal turn counter — raise it to `live` (30 ms) via the `useLiveFeedRate` hook, restoring idle on unmount.
+
+### Gyro sensitivity calibration
+
+`@shared/sens-cal.ts` is the pure half of the `senscal` flow: a turn accumulator over the rotation feed plus a fold mirroring the tracker firmware's `cal_sens.c` phase machine. It integrates the *incremental* world-frame delta rather than extracting a yaw angle per sample — a yaw extraction degenerates exactly where two of the three axes ask the user to stand the tracker on edge. Every firmware constant it reads (timeouts, rates, the scale clamp, the off-axis ratios) lives in `SENS_CAL` in `config.ts`.
+
+The firmware reports its verdict only on the *tracker's own* serial console, never over the radio, so the flow infers the phase from the receiver's ack plus the orientation feed, and the verification spin is the real success detector. Slot ↔ tracker identity has no protocol link either: `@shared/receiver-slots.ts` matches the address inside the SlimeVR tracker name as a hint, and the flow always confirms with the user before sending.
 
 ### Firmware picker
 
