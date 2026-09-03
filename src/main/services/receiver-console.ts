@@ -5,16 +5,17 @@ import type {
   ReceiverConsoleEvent,
   ReceiverConsoleState,
   ReceiverSlot,
-  SensCalRequest
+  SensSetRequest
 } from '@shared/types'
 import { parseSlotList } from '@shared/receiver-slots'
+import { formatSensValues } from '@shared/sens-cal'
 
 /** How long `list` output is collected before it is parsed. */
 const LIST_COLLECT_MS = 800
 
 /**
  * A long-lived session on the receiver's serial console, for commands other
- * than pairing — today, the guided sensitivity calibration.
+ * than pairing — today, the guided gyro sensitivity calibration.
  *
  * There is deliberately one of these rather than an ad-hoc port open per
  * command: the console CDC is exclusive, so a second owner would fight
@@ -117,13 +118,13 @@ export class ReceiverConsoleClient extends EventEmitter {
   }
 
   /**
-   * Start a gyro sensitivity calibration on one tracker. Resolving means the
-   * command reached the receiver, not that the run succeeded — the receiver's
-   * ack arrives as a console line, and the tracker's own verdict never leaves
-   * the tracker at all (see `@shared/sens-cal`).
+   * Write a tracker's gyro sensitivity correction. Resolving means the
+   * command reached the receiver, not the tracker — the receiver's ack
+   * arrives as a console line and only says it was queued for the tracker's
+   * next radio exchange (see `@shared/sens-cal`).
    */
-  async startSensCal(req: SensCalRequest): Promise<void> {
-    await this.write(RECEIVER_CONSOLE.sensAutoCmd(req.slot, req.axis, req.revolutions))
+  async setSens(req: SensSetRequest): Promise<void> {
+    await this.write(RECEIVER_CONSOLE.sensSetCmd(req.slot, formatSensValues(req.values)))
   }
 
   /** Line-buffer inbound serial text; serial data arrives in arbitrary chunks. */

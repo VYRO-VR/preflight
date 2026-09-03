@@ -1,39 +1,29 @@
 import { describe, it, expect } from 'vitest'
-import { SENS_CAL } from '../src/shared/config'
+import { RECEIVER_CONSOLE, SENS_CAL } from '../src/shared/config'
 import {
   ACK_TIMEOUT_MS,
+  correctionDegrees,
   emptyAccumulator,
-  hasEnoughAngle,
-  inferCause,
-  initialSensCalState,
-  isUrgent,
+  emptyCorrections,
+  formatSensValue,
+  initialSendState,
+  isStill,
+  measureSpin,
   offAxisLevel,
   offAxisRatio,
-  paceTurns,
   pushRotation,
-  reduceSensCal,
+  reduceSend,
   rotationDelta,
-  secondsLeft,
-  turnsCompleted,
+  scaleFromCorrection,
+  sensSetValues,
   turnsMeasured,
   verifySpin,
-  type SensCalEvent,
-  type SensCalState,
+  type SendEvent,
+  type SendState,
   type TurnAccumulator
 } from '../src/shared/sens-cal'
+import { fromAxisAngle, multiply, yaw } from '../src/shared/quaternion'
 import type { Quaternion } from '../src/shared/types'
-
-const DEG = Math.PI / 180
-
-/** Quaternion for `deg` about an arbitrary unit axis. */
-function quatAbout(axis: [number, number, number], deg: number): Quaternion {
-  const half = (deg * DEG) / 2
-  const s = Math.sin(half)
-  return { x: axis[0] * s, y: axis[1] * s, z: axis[2] * s, w: Math.cos(half) }
-}
-
-/** Quaternion for a yaw of `deg` about world up (+Y). */
-const yaw = (deg: number): Quaternion => quatAbout([0, 1, 0], deg)
 
 /**
  * Feed a spin into an accumulator: `totalDeg` degrees about world up, sampled
@@ -56,14 +46,7 @@ function spin({
   tiltDeg?: number
   acc?: TurnAccumulator
 }): { acc: TurnAccumulator; endMs: number; samples: { quat: Quaternion; atMs: number }[] } {
-  const tilt = quatAbout([1, 0, 0], tiltDeg)
-  const mul = (a: Quaternion, b: Quaternion): Quaternion => ({
-    w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
-    x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
-    y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
-    z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w
-  })
-
+  const tilt = fromAxisAngle({ x: 1, y: 0, z: 0 }, tiltDeg)
   const samples: { quat: Quaternion; atMs: number }[] = []
   const durationMs = (Math.abs(totalDeg) / dps) * 1000
   let out = acc
@@ -71,7 +54,7 @@ function spin({
   // delivers the full angle rather than one step short of it.
   for (let ms = 0; ms <= durationMs; ms = Math.min(ms + stepMs, durationMs)) {
     const progressed = (ms / durationMs) * totalDeg
-    const quat = mul(yaw(progressed), tilt)
+    const quat = multiply(yaw(progressed), tilt)
     const atMs = startMs + ms
     samples.push({ quat, atMs })
     out = pushRotation(out, quat, atMs)
@@ -93,7 +76,8 @@ describe('rotationDelta', () => {
   })
 
   it('reports a pure tilt as entirely off-axis', () => {
-    const d = rotationDelta(quatAbout([1, 0, 0], 0), quatAbout([1, 0, 0], 8), 30)
+    const x = { x: 1, y: 0, z: 0 }
+    const d = rotationDelta(fromAxisAngle(x, 0), fromAxisAngle(x, 8), 30)
     expect(d.aboutUpDeg).toBeCloseTo(0, 6)
     expect(d.offAxisDeg).toBeCloseTo(8, 6)
   })
@@ -104,6 +88,7 @@ describe('turn accumulator', () => {
     const { acc } = spin({ totalDeg: 3600, dps: 360 })
     expect(turnsMeasured(acc)).toBeCloseTo(10, 2)
     expect(offAxisRatio(acc)).toBeCloseTo(0, 4)
+    expect(acc.gaps).toBe(0)
   })
 
   it('counts the same ten turns with the tracker stood on edge', () => {
@@ -118,10 +103,33 @@ describe('turn accumulator', () => {
     expect(turnsMeasured(acc)).toBeCloseTo(10, 2)
   })
 
-  it('tracks the spin rate', () => {
+  it('is unaffected by a constant server-side fix on either side', () => {
+    // SlimeVR's yaw resets left-multiply a yaw; its attachment/mounting fixes
+    // right-multiply an arbitrary rotation. Neither may change the count.
+    const left = yaw(37)
+    const right = fromAxisAngle({ x: 0.6, y: 0.48, z: 0.64 }, 71)
+    let acc = emptyAccumulator()
+    for (const { quat, atMs } of spin({ totalDeg: 3600, dps: 360 }).samples) {
+      acc = pushRotation(acc, multiply(multiply(left, quat), right), atMs)
+    }
+    expect(turnsMeasured(acc)).toBeCloseTo(10, 2)
+    expect(offAxisRatio(acc)).toBeCloseTo(0, 4)
+  })
+
+  it('tracks the spin rate and total motion rate', () => {
     const { acc } = spin({ totalDeg: 1080, dps: 360 })
     expect(acc.rateDps).toBeGreaterThan(300)
     expect(acc.rateDps).toBeLessThan(400)
+    expect(acc.motionDps).toBeGreaterThan(300)
+    expect(isStill(acc)).toBe(false)
+  })
+
+  it('reads as still when the pose stops changing', () => {
+    let { acc } = spin({ totalDeg: 360, dps: 360 })
+    const last = acc.lastQuat!
+    let atMs = acc.lastAtMs!
+    for (let i = 0; i < 40; i++) acc = pushRotation(acc, last, (atMs += 30))
+    expect(isStill(acc)).toBe(true)
   })
 
   it('flags wobble as off-axis motion', () => {
@@ -129,27 +137,19 @@ describe('turn accumulator', () => {
     let atMs = 0
     // Alternate a yaw step with a tilt step: half the motion is off-axis.
     for (let i = 0; i < 20; i++) {
-      const tilt = quatAbout([1, 0, 0], i % 2 === 0 ? 0 : 6)
-      const mulYaw = quatAbout([0, 1, 0], i * 6)
-      acc = pushRotation(
-        acc,
-        {
-          w: mulYaw.w * tilt.w - mulYaw.x * tilt.x - mulYaw.y * tilt.y - mulYaw.z * tilt.z,
-          x: mulYaw.w * tilt.x + mulYaw.x * tilt.w + mulYaw.y * tilt.z - mulYaw.z * tilt.y,
-          y: mulYaw.w * tilt.y - mulYaw.x * tilt.z + mulYaw.y * tilt.w + mulYaw.z * tilt.x,
-          z: mulYaw.w * tilt.z + mulYaw.x * tilt.y - mulYaw.y * tilt.x + mulYaw.z * tilt.w
-        },
-        (atMs += 30)
-      )
+      const tilt = fromAxisAngle({ x: 1, y: 0, z: 0 }, i % 2 === 0 ? 0 : 6)
+      acc = pushRotation(acc, multiply(yaw(i * 6), tilt), (atMs += 30))
     }
     expect(offAxisRatio(acc)).toBeGreaterThan(SENS_CAL.offAxisWarnRatio)
+    expect(offAxisLevel(acc)).not.toBe('ok')
   })
 
-  it('re-seeds instead of integrating across a feed stall', () => {
+  it('re-seeds instead of integrating across a feed stall, and counts the gap', () => {
     let acc = pushRotation(emptyAccumulator(), yaw(0), 0)
     acc = pushRotation(acc, yaw(170), 5000) // a 5 s gap: the feed dropped out
     expect(acc.totalDeg).toBe(0)
     expect(acc.rateDps).toBe(0)
+    expect(acc.gaps).toBe(1)
   })
 
   it('re-seeds on a gap long enough for a spin to alias', () => {
@@ -159,6 +159,7 @@ describe('turn accumulator', () => {
     let acc = pushRotation(emptyAccumulator(), yaw(0), 0)
     acc = pushRotation(acc, yaw(216), 300)
     expect(acc.totalDeg).toBe(0)
+    expect(acc.gaps).toBe(1)
   })
 
   it('re-seeds on a step whose reading is near the ambiguous half-turn', () => {
@@ -171,6 +172,7 @@ describe('turn accumulator', () => {
     let acc = pushRotation(emptyAccumulator(), yaw(0), 0)
     acc = pushRotation(acc, yaw(140), 200)
     expect(acc.totalDeg).toBeCloseTo(140, 6)
+    expect(acc.gaps).toBe(0)
   })
 
   it('keeps counting from the new reference after a re-seed', () => {
@@ -183,220 +185,178 @@ describe('turn accumulator', () => {
   it('keeps counting at the idle feed rate, in case the rate change is lost', () => {
     const { acc } = spin({ totalDeg: 3600, dps: 360, stepMs: 200 })
     expect(turnsMeasured(acc)).toBeCloseTo(10, 2)
+    expect(acc.gaps).toBe(0)
   })
 })
 
 // ---------------------------------------------------------------------------
-// Phase machine
+// Measurement → firmware value
 // ---------------------------------------------------------------------------
 
-const ACK = 'Sens auto request sent to tracker 0 on z axis for 10 rev'
+describe('correctionDegrees', () => {
+  const rev = SENS_CAL.firmwareRevolutions
 
-/** Replay a list of events through the reducer. */
-function run(events: SensCalEvent[], from = initialSensCalState()): SensCalState {
-  return events.reduce(reduceSensCal, from)
-}
-
-/** Drive a run up to the point where the tracker is asking for the spin. */
-function readyToSpin(): SensCalState {
-  return run([
-    { type: 'sent', axis: 'z', revolutions: 10, atMs: 0 },
-    { type: 'console', line: ACK, atMs: 50 },
-    { type: 'tick', atMs: 50 + SENS_CAL.biasWindowMs }
-  ])
-}
-
-describe('sens-cal phase machine', () => {
-  it('starts idle', () => {
-    expect(initialSensCalState().phase).toBe('idle')
+  it('is zero for a gyro that reads the truth', () => {
+    expect(correctionDegrees(3600, 10)).toBeCloseTo(0, 9)
   })
 
-  it('waits for the receiver ack, then mirrors the bias window', () => {
-    const sent = run([{ type: 'sent', axis: 'z', revolutions: 10, atMs: 0 }])
-    expect(sent.phase).toBe('sending')
+  it('asks the firmware for a scale that cancels the measured error', () => {
+    // A gyro reading 1% low: the firmware must multiply by 1/0.99.
+    const deg = correctionDegrees(3600 * 0.99, 10)
+    expect(deg).toBeCloseTo(0.01 * 360 * rev, 6)
+    expect(scaleFromCorrection(deg)).toBeCloseTo(1 / 0.99, 9)
+  })
 
-    const acked = reduceSensCal(sent, { type: 'console', line: ACK, atMs: 50 })
-    expect(acked.phase).toBe('bias')
+  it('goes negative for a gyro that reads high', () => {
+    const deg = correctionDegrees(3600 * 1.02, 10)
+    expect(deg).toBeLessThan(0)
+    expect(scaleFromCorrection(deg)).toBeCloseTo(1 / 1.02, 9)
+  })
 
-    expect(reduceSensCal(acked, { type: 'tick', atMs: 50 + SENS_CAL.biasWindowMs - 1 }).phase).toBe(
-      'bias'
+  it('is expressed over the firmware turn count, not the spin turn count', () => {
+    // Same gyro, twice the turns spun: the value must not change.
+    expect(correctionDegrees(3600 * 0.995, 10)).toBeCloseTo(correctionDegrees(7200 * 0.995, 20), 9)
+  })
+})
+
+describe('measureSpin', () => {
+  it('accepts a clean ten-turn spin', () => {
+    const { acc } = spin({ totalDeg: 3600 * 0.996, dps: 360 })
+    const m = measureSpin(acc, 10)
+    expect(m.verdict).toBe('ok')
+    expect(m.impliedScale).toBeCloseTo(0.996, 3)
+    expect(m.errorDegPerTurn).toBeCloseTo(-1.44, 1)
+    expect(m.correctionDeg).toBeCloseTo(correctionDegrees(3600 * 0.996, 10), 3)
+  })
+
+  it('refuses a spin the feed dropped out of', () => {
+    let { acc } = spin({ totalDeg: 1800, dps: 360 })
+    acc = pushRotation(acc, acc.lastQuat!, acc.lastAtMs! + 2000) // stall
+    const rest = spin({ totalDeg: 1800, dps: 360, startMs: acc.lastAtMs! + 30, acc })
+    const m = measureSpin(rest.acc, 10)
+    expect(m.gaps).toBe(1)
+    expect(m.verdict).toBe('gaps')
+  })
+
+  it('refuses a miscounted spin rather than sending a huge correction', () => {
+    // Eight turns against ten expected is a 20% "error": no gyro is that bad.
+    const m = measureSpin({ ...emptyAccumulator(), totalDeg: 8 * 360 }, 10)
+    expect(m.withinClamp).toBe(false)
+    expect(m.verdict).toBe('miscount')
+  })
+
+  it('rejects a half-turn miscount over ten turns', () => {
+    for (const turns of [9.5, 10.5]) {
+      expect(measureSpin({ ...emptyAccumulator(), totalDeg: turns * 360 }, 10).verdict).toBe(
+        'miscount'
+      )
+    }
+  })
+
+  it('never produces a value the receiver cannot carry inside the clamp', () => {
+    for (const scale of [SENS_CAL.minScale, SENS_CAL.maxScale]) {
+      const m = measureSpin({ ...emptyAccumulator(), totalDeg: 3600 * scale }, 10)
+      expect(Math.abs(m.correctionDeg)).toBeLessThanOrEqual(SENS_CAL.maxValueDeg)
+    }
+  })
+})
+
+describe('correction triple', () => {
+  it('sends 0 for axes that have not been calibrated', () => {
+    expect(sensSetValues(emptyCorrections())).toEqual([0, 0, 0])
+  })
+
+  it('places each axis in x,y,z order', () => {
+    expect(sensSetValues({ x: 1.5, y: null, z: -2 })).toEqual([1.5, 0, -2])
+  })
+
+  it('can zero one axis on the wire without forgetting it', () => {
+    const corrections = { x: 1.5, y: 0.5, z: -2 }
+    expect(sensSetValues(corrections, 'z')).toEqual([1.5, 0.5, 0])
+    expect(corrections.z).toBe(-2)
+  })
+
+  it('formats values the way the receiver echoes them', () => {
+    expect(formatSensValue(1.234)).toBe('1.23')
+    expect(formatSensValue(-0.001)).toBe('0.00')
+    expect(formatSensValue(0)).toBe('0.00')
+    expect(formatSensValue(1000)).toBe(String(SENS_CAL.maxValueDeg.toFixed(2)))
+  })
+
+  it('builds the command the receiver documents', () => {
+    expect(RECEIVER_CONSOLE.sensSetCmd(3, ['1.20', '-0.40', '0.00'])).toBe(
+      'send 3 sens 1.20,-0.40,0.00\n'
     )
-    expect(readyToSpin().phase).toBe('ready-to-spin')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Send / ack fold
+// ---------------------------------------------------------------------------
+
+function run(events: SendEvent[], from: SendState = initialSendState()): SendState {
+  return events.reduce(reduceSend, from)
+}
+
+const SENT: SendEvent = { type: 'sent', slot: 2, values: [1.2, -0.4, 0], atMs: 0 }
+
+describe('send fold', () => {
+  it('starts idle and moves to sending on write', () => {
+    expect(initialSendState().phase).toBe('idle')
+    expect(run([SENT]).phase).toBe('sending')
   })
 
-  it('fails when the receiver never acks', () => {
+  it('accepts the receiver ack for the same slot and values', () => {
     const s = run([
-      { type: 'sent', axis: 'z', revolutions: 10, atMs: 0 },
-      { type: 'tick', atMs: ACK_TIMEOUT_MS + 1 }
+      SENT,
+      { type: 'console', line: 'Sens set (1.20,-0.40,0.00) request sent to tracker 2', atMs: 40 }
     ])
-    expect(s.phase).toBe('failed')
-    expect(s.failure).toBe('no-ack')
+    expect(s.phase).toBe('acked')
   })
 
-  it('fails when the receiver rejects the command', () => {
-    const s = run([
-      { type: 'sent', axis: 'z', revolutions: 10, atMs: 0 },
-      { type: 'console', line: "Invalid revolutions '0'", atMs: 20 }
-    ])
+  it('ignores an ack for another slot or other values', () => {
+    expect(
+      run([
+        SENT,
+        { type: 'console', line: 'Sens set (1.20,-0.40,0.00) request sent to tracker 1', atMs: 40 }
+      ]).phase
+    ).toBe('sending')
+    expect(
+      run([
+        SENT,
+        { type: 'console', line: 'Sens set (0.00,0.00,0.00) request sent to tracker 2', atMs: 40 }
+      ]).phase
+    ).toBe('sending')
+  })
+
+  it('ignores the echoed command line', () => {
+    const s = run([SENT, { type: 'console', line: 'send 2 sens 1.20,-0.40,0.00', atMs: 10 }])
+    expect(s.phase).toBe('sending')
+  })
+
+  it('fails on a rejection', () => {
+    const s = run([SENT, { type: 'console', line: 'Invalid float value: abc', atMs: 20 }])
     expect(s.phase).toBe('failed')
     expect(s.failure).toBe('rejected')
   })
 
-  it('fails when the user never starts spinning', () => {
-    const s = reduceSensCal(readyToSpin(), {
-      type: 'tick',
-      atMs: readyToSpin().phaseStartedAtMs + SENS_CAL.startTimeoutMs + 1
-    })
+  it('fails when the receiver never acks', () => {
+    const s = run([SENT, { type: 'tick', atMs: ACK_TIMEOUT_MS + 1 }])
     expect(s.phase).toBe('failed')
-    expect(s.failure).toBe('no-spin')
+    expect(s.failure).toBe('no-ack')
   })
 
-  it('runs a good ten-turn spin through to complete', () => {
-    let s = readyToSpin()
-    const { samples, endMs } = spin({
-      totalDeg: 3600,
-      dps: 360,
-      startMs: s.phaseStartedAtMs + 100
-    })
-    for (const sample of samples) {
-      s = reduceSensCal(s, { type: 'rotation', quat: sample.quat, atMs: sample.atMs })
-    }
-    expect(s.phase).toBe('spinning')
-    expect(turnsCompleted(s)).toBeGreaterThan(9)
-    expect(hasEnoughAngle(s)).toBe(true)
-
-    // Hold still: the rate decays below the stop threshold and the dwell runs.
-    let atMs = endMs
-    const last = samples[samples.length - 1].quat
-    while (s.phase !== 'complete' && atMs < endMs + 5000) {
-      atMs += 30
-      s = reduceSensCal(s, { type: 'rotation', quat: last, atMs })
-    }
-    expect(s.phase).toBe('complete')
-  })
-
-  it('does not accept a stop before the required angle', () => {
-    let s = readyToSpin()
-    // 8 turns is over half, but under `minFraction * 10`.
-    const { samples, endMs } = spin({
-      totalDeg: 8 * 360,
-      dps: 360,
-      startMs: s.phaseStartedAtMs + 100
-    })
-    for (const sample of samples) {
-      s = reduceSensCal(s, { type: 'rotation', quat: sample.quat, atMs: sample.atMs })
-    }
-    expect(hasEnoughAngle(s)).toBe(false)
-
-    const last = samples[samples.length - 1].quat
-    for (let atMs = endMs; atMs < endMs + 4000; atMs += 30) {
-      s = reduceSensCal(s, { type: 'rotation', quat: last, atMs })
-    }
-    // Still spinning as far as the firmware is concerned — it will hang until
-    // the timeout rather than accept an under-spun run.
-    expect(s.phase).toBe('spinning')
-  })
-
-  it('cancels the stop dwell if the tracker moves again', () => {
-    let s = readyToSpin()
-    const { samples, endMs } = spin({
-      totalDeg: 3600,
-      dps: 360,
-      startMs: s.phaseStartedAtMs + 100
-    })
-    for (const sample of samples) {
-      s = reduceSensCal(s, { type: 'rotation', quat: sample.quat, atMs: sample.atMs })
-    }
-    const last = samples[samples.length - 1].quat
-    let atMs = endMs
-    while (s.phase !== 'stopping' && atMs < endMs + 3000) {
-      atMs += 30
-      s = reduceSensCal(s, { type: 'rotation', quat: last, atMs })
-    }
-    expect(s.phase).toBe('stopping')
-
-    // Nudge it hard enough to clear the stop-rate threshold again.
-    const nudged = spin({ totalDeg: 180, dps: 360, startMs: atMs, acc: s.acc })
-    for (const sample of nudged.samples) {
-      s = reduceSensCal(s, { type: 'rotation', quat: sample.quat, atMs: sample.atMs })
-    }
-    expect(s.phase).toBe('spinning')
-  })
-
-  it('times out a spin that never finishes, and blames the pace', () => {
-    let s = readyToSpin()
-    // Fast enough to count as spinning (over `startRateDps`), far too slow to
-    // cover ten turns inside the 60 s budget.
-    const { samples } = spin({
-      totalDeg: 40 * 70,
-      dps: 40,
-      startMs: s.phaseStartedAtMs + 100,
-      stepMs: 100
-    })
-    for (const sample of samples) {
-      s = reduceSensCal(s, { type: 'rotation', quat: sample.quat, atMs: sample.atMs })
-    }
-    expect(s.phase).toBe('failed')
-    expect(s.failure).toBe('spin-timeout')
-    expect(s.cause).toBe('too-slow')
-  })
-
-  it('blames off-axis motion when the run was tilted', () => {
-    const acc = { ...emptyAccumulator(), totalDeg: 720, offAxisDeg: 400 }
-    const s: SensCalState = { ...initialSensCalState(), acc }
-    expect(offAxisLevel(s)).toBe('reject')
-    expect(inferCause(s, 'spin-timeout')).toBe('off-axis')
-  })
-
-  it('abandons the run on abort', () => {
-    const s = reduceSensCal(readyToSpin(), { type: 'abort', atMs: 9000 })
-    expect(s.phase).toBe('failed')
-    expect(s.failure).toBe('aborted')
+  it('does not read console lines when nothing is in flight', () => {
+    const s = run([
+      { type: 'console', line: 'Sens set (1.20,-0.40,0.00) request sent to tracker 2', atMs: 40 }
+    ])
+    expect(s.phase).toBe('idle')
   })
 })
 
-describe('pace guide and countdown', () => {
-  it('asks for a pace that finishes inside the spin budget', () => {
-    // The pace has to leave room for the careful edge-aligned stop.
-    expect(SENS_CAL.paceSecondsPerTurn * SENS_CAL.revolutions * 1000).toBeLessThan(
-      SENS_CAL.spinTimeoutMs
-    )
-  })
-
-  it('advances the target turn count with the clock', () => {
-    const s: SensCalState = {
-      ...initialSensCalState(),
-      phase: 'spinning',
-      spinStartedAtMs: 1000,
-      nowMs: 1000 + SENS_CAL.paceSecondsPerTurn * 4 * 1000
-    }
-    expect(paceTurns(s)).toBeCloseTo(4, 6)
-  })
-
-  it('never asks for more than the requested revolutions', () => {
-    const s: SensCalState = {
-      ...initialSensCalState(),
-      phase: 'spinning',
-      spinStartedAtMs: 0,
-      nowMs: 10 * 60 * 1000
-    }
-    expect(paceTurns(s)).toBe(s.revolutions)
-  })
-
-  it('counts down the spin budget and turns urgent near the end', () => {
-    const base: SensCalState = {
-      ...initialSensCalState(),
-      phase: 'spinning',
-      spinStartedAtMs: 0
-    }
-    expect(secondsLeft({ ...base, nowMs: 0 })).toBeCloseTo(SENS_CAL.spinTimeoutMs / 1000, 6)
-    expect(isUrgent({ ...base, nowMs: 10000 })).toBe(false)
-    expect(
-      isUrgent({ ...base, nowMs: SENS_CAL.spinTimeoutMs - SENS_CAL.urgentSecondsLeft * 1000 })
-    ).toBe(true)
-    expect(secondsLeft({ ...base, nowMs: SENS_CAL.spinTimeoutMs + 5000 })).toBe(0)
-  })
-})
+// ---------------------------------------------------------------------------
+// Verification spin
+// ---------------------------------------------------------------------------
 
 describe('verifySpin', () => {
   it('passes a spin that matches the truth', () => {
@@ -420,6 +380,11 @@ describe('verifySpin', () => {
     // Eight turns measured against ten expected: the user lost count.
     const result = verifySpin({ ...emptyAccumulator(), totalDeg: 8 * 360 }, 10)
     expect(result.withinClamp).toBe(false)
+    expect(result.pass).toBe(false)
+  })
+
+  it('does not pass a spin the feed dropped out of', () => {
+    const result = verifySpin({ ...emptyAccumulator(), totalDeg: 3600, gaps: 1 }, 10)
     expect(result.pass).toBe(false)
   })
 

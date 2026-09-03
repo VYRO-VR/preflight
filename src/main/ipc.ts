@@ -24,7 +24,7 @@ import { BulkFlashSession } from './services/bulk-flash'
 import { getDocPage, openExternal } from './services/docs'
 import { exportDiagnostics } from './services/diagnostics'
 import { getSettings, setSettings } from './services/settings'
-import type { AppSettings, FlashRequest, ReceiverDfuRequest, SensCalRequest } from '@shared/types'
+import type { AppSettings, FlashRequest, ReceiverDfuRequest, SensSetRequest } from '@shared/types'
 
 /**
  * Registers all IPC handlers. A single long-lived SlimeVrClient streams live
@@ -100,9 +100,7 @@ export function registerIpc(win: BrowserWindow): {
   ipcMain.handle('receiver:close-console', () => receiverConsole.close())
   ipcMain.handle('receiver:get-console-state', () => receiverConsole.getState())
   ipcMain.handle('receiver:list-slots', () => receiverConsole.listSlots())
-  ipcMain.handle('receiver:start-sens-cal', (_e, req: SensCalRequest) =>
-    receiverConsole.startSensCal(req)
-  )
+  ipcMain.handle('receiver:set-sens', (_e, req: SensSetRequest) => receiverConsole.setSens(req))
 
   ipcMain.handle('firmware:get-catalog', () => getFirmwareCatalog())
   ipcMain.handle('firmware:detect-drives', () => detectBootloaderDrives())

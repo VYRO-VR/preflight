@@ -86,11 +86,16 @@ export interface TrackerInfo {
 }
 
 /**
- * Body axis of a tracker, as named by the firmware's `sens auto <x|y|z>`.
- * Z is the axis normal to the flat face (tracker lying on a desk); X and Y
- * are the in-plane axes (tracker stood on edge).
+ * Gyro axis of a tracker, as indexed by the firmware's `sens <x>,<y>,<z>`.
+ * Which physical placement stands each one vertical is `SENS_CAL.placements`.
  */
 export type SensCalAxis = 'x' | 'y' | 'z'
+
+/**
+ * How the tracker is placed for a calibration spin: lying flat with the
+ * button up, or stood on its long or short edge on the same surface.
+ */
+export type SensCalPlacement = 'flat' | 'long-edge' | 'short-edge'
 
 export interface SlimeVrLiveState {
   connected: boolean
@@ -217,12 +222,15 @@ export type ReceiverConsoleEvent =
   | { type: 'line'; line: string }
   | { type: 'error'; message: string }
 
-/** Request to start a gyro sensitivity calibration on one tracker. */
-export interface SensCalRequest {
+/** Request to write a tracker's gyro sensitivity correction. */
+export interface SensSetRequest {
   /** Receiver slot id of the tracker. */
   slot: number
-  axis: SensCalAxis
-  revolutions: number
+  /**
+   * Per-axis correction in degrees of difference over
+   * `SENS_CAL.firmwareRevolutions` turns, x/y/z; 0 clears an axis.
+   */
+  values: [number, number, number]
 }
 
 // ---------------------------------------------------------------------------
@@ -420,8 +428,12 @@ export interface Api {
     onConsoleEvent: (cb: (event: ReceiverConsoleEvent) => void) => () => void
     /** Run `list` and return the paired tracker slots, in slot order. */
     listSlots: () => Promise<ReceiverSlot[]>
-    /** Send `send <slot> sens auto <axis> <rev>` to start a calibration. */
-    startSensCal: (req: SensCalRequest) => Promise<void>
+    /**
+     * Send `send <slot> sens <x>,<y>,<z>` to write a sensitivity correction.
+     * Resolves when written to the port; the receiver's ack arrives as a
+     * console line.
+     */
+    setSens: (req: SensSetRequest) => Promise<void>
   }
   firmware: {
     getCatalog: () => Promise<FirmwareCatalog>

@@ -3,22 +3,41 @@ import { SENS_CAL } from '@shared/config'
 import { matchSlotToTracker } from '@shared/receiver-slots'
 import {
   emptyAccumulator,
-  hasEnoughAngle,
-  initialSensCalState,
-  isUrgent,
+  emptyCorrections,
+  formatSensValue,
+  initialSendState,
+  isStill,
+  measureSpin,
   offAxisLevel,
-  paceTurns,
   pushRotation,
-  reduceSensCal,
-  secondsLeft,
-  turnsCompleted,
+  reduceSend,
+  scaleFromCorrection,
+  sensSetValues,
   turnsMeasured,
   verifySpin,
-  type SensCalState,
+  type SendState,
+  type SensCorrections,
+  type SpinMeasurement,
   type TurnAccumulator,
   type VerificationResult
 } from '@shared/sens-cal'
-import type { ReceiverPort, ReceiverSlot, SensCalAxis, TrackerInfo } from '@shared/types'
+import {
+  captureReference,
+  pinHeading,
+  placementMatches,
+  readPlacement,
+  trackerPose,
+  type PlacementReading,
+  type TrackerFrame
+} from '@shared/tracker-frame'
+import type {
+  Quaternion,
+  ReceiverPort,
+  ReceiverSlot,
+  SensCalAxis,
+  SensCalPlacement,
+  TrackerInfo
+} from '@shared/types'
 import { useAppStore } from '../store/useAppStore'
 import { useLiveFeedRate } from '../hooks/useLiveFeedRate'
 import { FlowShell } from '../components/FlowShell'
@@ -30,13 +49,17 @@ import type { TranslationKey } from '../i18n'
 /**
  * Guided gyro sensitivity calibration.
  *
- * The tracker firmware can measure its own gyro scale factor (`sens auto`),
- * but only if the user spins it a known number of turns, about one axis, fast
- * enough, without tilting it — and the firmware reports nothing back over the
- * radio. So this flow does three jobs the firmware cannot: it coaches the
- * physical setup, it makes the pace achievable instead of merely reporting
- * failure afterwards, and it measures the result itself with a verification
- * spin. See `@shared/sens-cal` for the phase machine and the maths.
+ * Per gyro axis: the user stands the tracker so that axis is vertical, spins
+ * it a known number of turns against a repeatable edge, and puts it back.
+ * The app measures how far the tracker thought it turned, shows the error,
+ * and writes the correction to the tracker through the receiver. There is no
+ * pace to keep and no timeout — the firmware's own timed `sens auto` run is
+ * not used. See `@shared/sens-cal` for the maths and the ack fold.
+ *
+ * Before any of that, the tracker is laid flat with the button up so the
+ * preview can be shown in the tracker's *physical* frame
+ * (`@shared/tracker-frame`); the same reference lets each placement be
+ * checked live before a spin starts.
  */
 
 type Stage =
@@ -46,20 +69,26 @@ type Stage =
   | 'error'
   | 'pick'
   | 'confirm'
+  | 'reference'
   | 'place'
-  | 'practice'
-  | 'run'
-  | 'failed'
+  | 'zeroing'
+  | 'spin'
+  | 'measured'
+  | 'applying'
+  | 'send-failed'
   | 'verify'
   | 'axis-result'
   | 'done'
 
-type AxisOutcome = 'pending' | 'passed' | 'failed' | 'skipped'
+type AxisOutcome = 'pending' | 'applied' | 'verified' | 'unverified' | 'skipped'
 
-/** How often the phase machine gets a clock tick while a run is live. */
+/** Why a `sens` write is in flight, so the ack knows where to go next. */
+type SendPurpose = 'zero' | 'apply'
+
+/** How often the send fold gets a clock tick while a write is in flight. */
 const TICK_MS = 200
 
-const AXES = SENS_CAL.axes
+const PLACEMENTS = SENS_CAL.placements
 
 export function SensCalFlow({ onExit }: { onExit: () => void }) {
   const t = useAppStore((s) => s.t)
@@ -75,20 +104,26 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
 
   const [trackerId, setTrackerId] = useState<string | null>(null)
   const [slot, setSlot] = useState<number | null>(null)
-  const [axisIndex, setAxisIndex] = useState(0)
+  const [frame, setFrame] = useState<TrackerFrame | null>(null)
+  const [placementIndex, setPlacementIndex] = useState(0)
+  const [corrections, setCorrections] = useState<SensCorrections>(emptyCorrections())
   const [outcomes, setOutcomes] = useState<Record<SensCalAxis, AxisOutcome>>({
     x: 'pending',
     y: 'pending',
     z: 'pending'
   })
 
-  const [cal, setCal] = useState<SensCalState>(initialSensCalState())
   const [acc, setAcc] = useState<TurnAccumulator>(emptyAccumulator())
-  const [practiceSeconds, setPracticeSeconds] = useState<number | null>(null)
+  const [send, setSend] = useState<SendState>(initialSendState())
+  const [sendPurpose, setSendPurpose] = useState<SendPurpose>('zero')
+  const [measurement, setMeasurement] = useState<SpinMeasurement | null>(null)
   const [verification, setVerification] = useState<VerificationResult | null>(null)
 
-  const axis = AXES[axisIndex]
+  const { placement, axis } = PLACEMENTS[placementIndex]
   const tracker = trackers.find((x) => x.id === trackerId)
+  const rotation = tracker?.rotation
+  const pose = frame && rotation ? trackerPose(frame, rotation) : rotation
+  const reading: PlacementReading | null = frame && rotation ? readPlacement(frame, rotation) : null
 
   const fail = useCallback((message: string): void => {
     setErrorMsg(message)
@@ -121,54 +156,59 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
 
   useEffect(() => {
     void search()
-    // Always release the port when the flow closes; a calibration already
-    // running on a tracker is unaffected — it belongs to the tracker.
+    // Always release the port when the flow closes. Corrections already
+    // written are on the tracker's flash; nothing is left half-done.
     return () => {
       void window.api.receiver.closeConsole()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // -- live rotation into the accumulator / phase machine -------------------
+  // -- live rotation into the accumulator ------------------------------------
 
-  const liveStages: Stage[] = ['practice', 'run', 'verify']
+  const liveStages: Stage[] = ['reference', 'place', 'spin', 'verify']
   const isLive = liveStages.includes(stage)
 
   useEffect(() => {
     if (!isLive || !trackerId) return
     const unsubscribe = useAppStore.subscribe((state) => {
-      const rotation = state.liveState.trackers.find((x) => x.id === trackerId)?.rotation
-      if (!rotation) return
-      const atMs = performance.now()
-      if (stage === 'run') {
-        setCal((s) => reduceSensCal(s, { type: 'rotation', quat: rotation, atMs }))
-      } else {
-        setAcc((a) => pushRotation(a, rotation, atMs))
-      }
+      const quat = state.liveState.trackers.find((x) => x.id === trackerId)?.rotation
+      if (!quat) return
+      setAcc((a) => pushRotation(a, quat, performance.now()))
     })
     return unsubscribe
-  }, [isLive, stage, trackerId])
+  }, [isLive, trackerId])
 
-  // Timeouts have to advance even when the feed goes quiet — a stalled feed is
-  // itself one of the ways a run fails.
+  // Reference capture: once the tracker has held still long enough, the pose
+  // it is holding *is* "flat, button up".
+  const stillSinceRef = useRef<number | null>(null)
   useEffect(() => {
-    if (stage !== 'run') return
-    const id = setInterval(
-      () => setCal((s) => reduceSensCal(s, { type: 'tick', atMs: performance.now() })),
-      TICK_MS
-    )
-    return () => clearInterval(id)
-  }, [stage])
+    if (stage !== 'reference' || frame) return
+    if (!isStill(acc) || !acc.lastQuat) {
+      stillSinceRef.current = null
+      return
+    }
+    const now = performance.now()
+    if (stillSinceRef.current === null) {
+      stillSinceRef.current = now
+      return
+    }
+    if (now - stillSinceRef.current >= SENS_CAL.stillDwellMs) {
+      setFrame(captureReference(acc.lastQuat))
+    }
+  }, [stage, acc, frame])
 
-  // The receiver's ack is the only confirmation that the command was accepted,
-  // and it can land before an effect keyed on the run stage would have
-  // subscribed — so listen for the whole life of the flow. The phase machine
-  // ignores console lines outside the window where they mean anything.
+  // -- send / ack ------------------------------------------------------------
+
+  // The receiver's ack is the only confirmation that the command was queued,
+  // and it can land before an effect keyed on the sending stage would have
+  // subscribed — so listen for the whole life of the flow. The fold ignores
+  // console lines while nothing is in flight.
   useEffect(() => {
     return window.api.receiver.onConsoleEvent((event) => {
       if (event.type === 'line') {
-        setCal((s) =>
-          reduceSensCal(s, { type: 'console', line: event.line, atMs: performance.now() })
+        setSend((s) =>
+          reduceSend(s, { type: 'console', line: event.line, atMs: performance.now() })
         )
       } else if (event.type === 'error') {
         fail(event.message)
@@ -176,27 +216,46 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
     })
   }, [fail])
 
-  // Move off the run stage when the phase machine settles.
+  const sending = stage === 'zeroing' || stage === 'applying'
   useEffect(() => {
-    if (stage !== 'run') return
-    if (cal.phase === 'complete') setStage('verify')
-    else if (cal.phase === 'failed') setStage('failed')
-  }, [stage, cal.phase])
+    if (!sending) return
+    const id = setInterval(
+      () => setSend((s) => reduceSend(s, { type: 'tick', atMs: performance.now() })),
+      TICK_MS
+    )
+    return () => clearInterval(id)
+  }, [sending])
 
-  // Practice: time one full turn so the user learns the cadence before a run.
-  const practiceStartRef = useRef<number | null>(null)
   useEffect(() => {
-    if (stage !== 'practice') return
-    if (practiceStartRef.current === null) {
-      if (acc.rateDps >= SENS_CAL.startRateDps) practiceStartRef.current = performance.now()
-      return
-    }
-    if (turnsMeasured(acc) >= 1) {
-      setPracticeSeconds((performance.now() - practiceStartRef.current) / 1000)
-      practiceStartRef.current = null
+    if (!sending) return
+    if (send.phase === 'acked') {
       setAcc(emptyAccumulator())
+      if (sendPurpose === 'zero') {
+        setStage('spin')
+      } else {
+        setOutcomes((o) => ({ ...o, [axis]: 'applied' }))
+        setVerification(null)
+        setStage('verify')
+      }
+    } else if (send.phase === 'failed') {
+      setStage('send-failed')
     }
-  }, [stage, acc])
+  }, [sending, send.phase, sendPurpose, axis])
+
+  const writeSens = async (
+    purpose: SendPurpose,
+    values: [number, number, number]
+  ): Promise<void> => {
+    if (slot === null) return
+    setSendPurpose(purpose)
+    setStage(purpose === 'zero' ? 'zeroing' : 'applying')
+    try {
+      await window.api.receiver.setSens({ slot, values })
+      setSend((s) => reduceSend(s, { type: 'sent', slot, values, atMs: performance.now() }))
+    } catch (e) {
+      fail(e instanceof Error ? e.message : String(e))
+    }
+  }
 
   // -- actions --------------------------------------------------------------
 
@@ -209,43 +268,63 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
     setStage('confirm')
   }
 
-  const startRun = async (): Promise<void> => {
-    if (slot === null) return
-    setCal(initialSensCalState(axis, SENS_CAL.revolutions))
-    setStage('run')
-    try {
-      await window.api.receiver.startSensCal({ slot, axis, revolutions: SENS_CAL.revolutions })
-      setCal((s) =>
-        reduceSensCal(s, {
-          type: 'sent',
-          axis,
-          revolutions: SENS_CAL.revolutions,
-          atMs: performance.now()
-        })
-      )
-    } catch (e) {
-      fail(e instanceof Error ? e.message : String(e))
-    }
-  }
-
-  const finishAxis = (outcome: AxisOutcome): void => {
-    setOutcomes((o) => ({ ...o, [axis]: outcome }))
-    setStage('axis-result')
-  }
-
-  const nextAxis = (): void => {
-    setVerification(null)
-    setPracticeSeconds(null)
+  const startReference = (): void => {
+    setFrame(null)
+    stillSinceRef.current = null
     setAcc(emptyAccumulator())
-    if (axisIndex + 1 < AXES.length) {
-      setAxisIndex(axisIndex + 1)
+    setStage('reference')
+  }
+
+  const startSpin = (): void => {
+    // The long edge is the pose the preview's heading is pinned from: from
+    // here on the slab's long and short sides match the case.
+    if (placement === 'long-edge' && frame && !frame.headingPinned && rotation) {
+      setFrame(pinHeading(frame, rotation))
+    }
+    // Measure against no correction on this axis — the value written before
+    // (or whatever the tracker shipped with) would otherwise be measured in.
+    void writeSens('zero', sensSetValues(corrections, axis))
+  }
+
+  const finishSpin = (): void => {
+    setMeasurement(measureSpin(acc, SENS_CAL.revolutions))
+    setStage('measured')
+  }
+
+  const applyMeasurement = (): void => {
+    if (!measurement) return
+    const next = { ...corrections, [axis]: measurement.correctionDeg }
+    setCorrections(next)
+    void writeSens('apply', sensSetValues(next))
+  }
+
+  const retrySend = (): void => {
+    void writeSens(
+      sendPurpose,
+      sendPurpose === 'zero' ? sensSetValues(corrections, axis) : sensSetValues(corrections)
+    )
+  }
+
+  const nextPlacement = (): void => {
+    setMeasurement(null)
+    setVerification(null)
+    setAcc(emptyAccumulator())
+    if (placementIndex + 1 < PLACEMENTS.length) {
+      setPlacementIndex(placementIndex + 1)
       setStage('place')
     } else {
       setStage('done')
     }
   }
 
+  const skipAxis = (): void => {
+    setOutcomes((o) => ({ ...o, [axis]: 'skipped' }))
+    setCorrections((c) => ({ ...c, [axis]: null }))
+    nextPlacement()
+  }
+
   const redoAxis = (): void => {
+    setMeasurement(null)
     setVerification(null)
     setAcc(emptyAccumulator())
     setOutcomes((o) => ({ ...o, [axis]: 'pending' }))
@@ -254,28 +333,12 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
 
   // -- render ---------------------------------------------------------------
 
-  const axisTitleKey = `senscal.axis.${axis}.title` as TranslationKey
-  const axisBodyKey = `senscal.axis.${axis}.body` as TranslationKey
-
-  const footer =
-    stage === 'run' ? (
-      <Button
-        variant="ghost"
-        onClick={() => {
-          setCal((s) => reduceSensCal(s, { type: 'abort', atMs: performance.now() }))
-        }}
-      >
-        {t('senscal.run.cancel')}
-      </Button>
-    ) : undefined
+  const placementTitleKey = `senscal.placement.${placement}.title` as TranslationKey
+  const placementBodyKey = `senscal.placement.${placement}.body` as TranslationKey
+  const placementOk = reading !== null && placementMatches(reading, placement)
 
   return (
-    <FlowShell
-      title={t('senscal.title')}
-      description={t('senscal.subtitle')}
-      onExit={onExit}
-      footer={footer}
-    >
+    <FlowShell title={t('senscal.title')} description={t('senscal.subtitle')} onExit={onExit}>
       {stage === 'connecting' && (
         <StatusBadge status="running" label={t('senscal.connect.searching')} />
       )}
@@ -354,7 +417,7 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
           <p className="text-sm text-slate-300">
             {t('senscal.confirm.body', { name: tracker.name })}
           </p>
-          <TrackerPreview rotation={tracker.rotation} fallbackText={t('senscal.preview.nowebgl')} />
+          <TrackerPreview rotation={rotation} fallbackText={t('senscal.preview.nowebgl')} />
 
           {/* The slot is inferred, never known. When the guess is missing the
               user picks it, and either way nothing is sent until they confirm. */}
@@ -374,7 +437,7 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
           )}
 
           <div className="flex gap-3">
-            <Button disabled={slot === null} onClick={() => setStage('place')}>
+            <Button disabled={slot === null} onClick={startReference}>
               {t('senscal.confirm.yes')}
             </Button>
             <Button variant="ghost" onClick={() => setStage('pick')}>
@@ -384,96 +447,126 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
         </div>
       )}
 
-      {(stage === 'place' || stage === 'practice') && (
+      {stage === 'reference' && (
         <div className="space-y-3">
-          <AxisHeading
-            title={t(axisTitleKey)}
-            body={t(axisBodyKey)}
-            progress={t('senscal.axis.progress', { index: axisIndex + 1, total: AXES.length })}
-          />
-          <TrackerPreview
-            rotation={tracker?.rotation}
-            highlightAxis={axis}
-            fallbackText={t('senscal.preview.nowebgl')}
-          />
-
-          <Notice tone="info" title={t('senscal.place.title')}>
-            <p>{t('senscal.place.edge')}</p>
-            <p className="mt-2 text-slate-400">{t('senscal.place.why')}</p>
-            <p className="mt-2">{t('senscal.place.flat')}</p>
-          </Notice>
-
-          {stage === 'practice' && (
-            <Notice tone="info" title={t('senscal.practice.title')}>
-              <p>
-                {t('senscal.practice.body', { budget: Math.round(SENS_CAL.spinTimeoutMs / 1000) })}
-              </p>
-              <p className="mt-2 text-slate-400">
-                {t('senscal.practice.target', { seconds: SENS_CAL.paceSecondsPerTurn })}
-              </p>
-              {practiceSeconds === null ? (
-                <p className="mt-2 text-slate-400">{t('senscal.practice.waiting')}</p>
-              ) : (
-                <>
-                  <p className="mt-2 text-slate-100">
-                    {t('senscal.practice.measured', { seconds: practiceSeconds.toFixed(1) })}
-                  </p>
-                  <p
-                    className={`mt-1 ${
-                      practiceSeconds <= SENS_CAL.paceSecondsPerTurn
-                        ? 'text-emerald-300'
-                        : 'text-amber-300'
-                    }`}
-                  >
-                    {practiceSeconds <= SENS_CAL.paceSecondsPerTurn
-                      ? t('senscal.practice.good')
-                      : t('senscal.practice.slow')}
-                  </p>
-                </>
-              )}
+          <Heading title={t('senscal.reference.title')} body={t('senscal.reference.body')} />
+          <TrackerPreview rotation={pose} fallbackText={t('senscal.preview.nowebgl')} />
+          {frame ? (
+            <Notice tone="success" title={t('senscal.reference.title')}>
+              <p>{t('senscal.reference.captured')}</p>
             </Notice>
+          ) : (
+            <StatusBadge status="running" label={t('senscal.reference.waiting')} />
           )}
-
           <div className="flex gap-3">
-            {stage === 'place' ? (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setPracticeSeconds(null)
-                  practiceStartRef.current = null
-                  setAcc(emptyAccumulator())
-                  setStage('practice')
-                }}
-              >
-                {t('senscal.place.practice')}
-              </Button>
-            ) : (
-              <Button variant="ghost" onClick={() => setStage('place')}>
-                {t('senscal.practice.done')}
+            <Button disabled={!frame} onClick={() => setStage('place')}>
+              {t('senscal.reference.continue')}
+            </Button>
+            {frame && (
+              <Button variant="ghost" onClick={startReference}>
+                {t('senscal.reference.retake')}
               </Button>
             )}
-            <Button onClick={startRun}>{t('senscal.place.start')}</Button>
           </div>
         </div>
       )}
 
-      {stage === 'run' && <RunPanel state={cal} rotation={tracker?.rotation} />}
-
-      {stage === 'failed' && (
-        <Notice tone="error" title={t('senscal.fail.title')}>
-          <p>{t(`senscal.fail.${failureKey(cal)}` as TranslationKey)}</p>
-          <p className="mt-2 text-slate-300">
-            {t(`senscal.fail.cause.${cal.cause ?? 'unknown'}` as TranslationKey, {
-              budget: Math.round(SENS_CAL.spinTimeoutMs / 1000)
+      {stage === 'place' && (
+        <div className="space-y-3">
+          <Heading
+            title={t(placementTitleKey)}
+            body={t(placementBodyKey)}
+            progress={t('senscal.axis.progress', {
+              index: placementIndex + 1,
+              total: PLACEMENTS.length,
+              axis: axis.toUpperCase()
             })}
+          />
+          <TrackerPreview
+            rotation={pose}
+            highlightPlacement={placement}
+            showSpinAxis
+            fallbackText={t('senscal.preview.nowebgl')}
+          />
+          <ReadingLine reading={reading} ok={placementOk} />
+
+          <Notice tone="info" title={t('senscal.place.title')}>
+            <p>{t('senscal.place.edge')}</p>
+            <p className="mt-2 text-slate-400">
+              {t('senscal.place.why', { turns: SENS_CAL.revolutions })}
+            </p>
+            <p className="mt-2">{t('senscal.place.flat')}</p>
+          </Notice>
+
+          <div className="flex gap-3">
+            <Button disabled={!placementOk} onClick={startSpin}>
+              {t('senscal.place.start')}
+            </Button>
+            <Button variant="ghost" onClick={startReference}>
+              {t('senscal.reference.retake')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {sending && (
+        <StatusBadge
+          status="running"
+          label={stage === 'zeroing' ? t('senscal.send.zeroing') : t('senscal.send.applying')}
+        />
+      )}
+
+      {stage === 'send-failed' && (
+        <Notice tone="error" title={t('senscal.send.fail.title')}>
+          <p>
+            {send.failure === 'rejected'
+              ? t('senscal.send.fail.rejected')
+              : t('senscal.send.fail.noack')}
           </p>
           <div className="mt-3 flex gap-3">
-            <Button onClick={redoAxis}>{t('senscal.fail.retry')}</Button>
-            <Button variant="ghost" onClick={() => finishAxis('skipped')}>
-              {t('senscal.fail.skip')}
+            <Button onClick={retrySend}>{t('senscal.send.retry')}</Button>
+            <Button
+              variant="ghost"
+              onClick={() => setStage(sendPurpose === 'zero' ? 'place' : 'measured')}
+            >
+              {t('senscal.send.back')}
             </Button>
           </div>
         </Notice>
+      )}
+
+      {stage === 'spin' && (
+        <SpinPanel
+          acc={acc}
+          pose={pose}
+          placement={placement}
+          onDone={finishSpin}
+          onRestart={() => setAcc(emptyAccumulator())}
+          onCancel={() => setStage('place')}
+        />
+      )}
+
+      {stage === 'measured' && measurement && (
+        <div className="space-y-3">
+          <MeasurementNotice result={measurement} axis={axis} />
+          <div className="flex flex-wrap gap-3">
+            {measurement.verdict === 'ok' && (
+              <Button onClick={applyMeasurement}>{t('senscal.measured.apply')}</Button>
+            )}
+            <Button
+              variant={measurement.verdict === 'ok' ? 'secondary' : 'primary'}
+              onClick={() => {
+                setMeasurement(null)
+                setStage('place')
+              }}
+            >
+              {t('senscal.measured.again')}
+            </Button>
+            <Button variant="ghost" onClick={skipAxis}>
+              {t('senscal.measured.skip')}
+            </Button>
+          </div>
+        </div>
       )}
 
       {stage === 'verify' && (
@@ -487,7 +580,7 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
             </div>
           </div>
           {verification && <VerificationNotice result={verification} />}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button variant="secondary" onClick={() => setAcc(emptyAccumulator())}>
               {t('senscal.verify.start')}
             </Button>
@@ -495,12 +588,15 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
               onClick={() => {
                 const result = verifySpin(acc, SENS_CAL.revolutions)
                 setVerification(result)
-                if (result.withinClamp) finishAxis(result.pass ? 'passed' : 'failed')
+                if (result.withinClamp && result.gaps === 0) {
+                  setOutcomes((o) => ({ ...o, [axis]: result.pass ? 'verified' : 'unverified' }))
+                  setStage('axis-result')
+                }
               }}
             >
               {t('senscal.verify.finish')}
             </Button>
-            <Button variant="ghost" onClick={() => finishAxis('skipped')}>
+            <Button variant="ghost" onClick={nextPlacement}>
               {t('senscal.verify.skip')}
             </Button>
           </div>
@@ -511,8 +607,10 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
         <div className="space-y-3">
           {verification && <VerificationNotice result={verification} />}
           <div className="flex gap-3">
-            <Button onClick={nextAxis}>
-              {axisIndex + 1 < AXES.length ? t('senscal.result.next') : t('senscal.result.finish')}
+            <Button onClick={nextPlacement}>
+              {placementIndex + 1 < PLACEMENTS.length
+                ? t('senscal.result.next')
+                : t('senscal.result.finish')}
             </Button>
             <Button variant="ghost" onClick={redoAxis}>
               {t('senscal.result.rerun')}
@@ -526,11 +624,11 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
           <Notice tone="info" title={t('senscal.done.title')}>
             <p>{t('senscal.done.body')}</p>
           </Notice>
-          {AXES.map((a) => (
+          {PLACEMENTS.map(({ axis: a }) => (
             <Row
               key={a}
               label={t('senscal.done.axis', { axis: a.toUpperCase() })}
-              hint={t(`senscal.done.${outcomeKey(outcomes[a])}` as TranslationKey)}
+              hint={outcomeText(t, outcomes[a], corrections[a])}
             />
           ))}
           <Button onClick={onExit}>{t('senscal.done.close')}</Button>
@@ -545,92 +643,152 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
 // ---------------------------------------------------------------------------
 
 /**
- * The live run: the firmware's phase mirrored on screen, the turn counter, a
- * pace marker, and the countdown against the spin budget. The pace marker is
- * the part that stops a run failing — under-spinning does not produce a bad
- * calibration, it hangs for a minute and then reports a timeout.
+ * The live spin: the turn counter, the tilt coaching, and a Done button that
+ * only unlocks on the last turn — the count is checked properly afterwards,
+ * this just stops an early press.
  */
-function RunPanel({
-  state,
-  rotation
+function SpinPanel({
+  acc,
+  pose,
+  placement,
+  onDone,
+  onRestart,
+  onCancel
 }: {
-  state: SensCalState
-  rotation?: TrackerInfo['rotation']
+  acc: TurnAccumulator
+  pose?: Quaternion
+  placement: SensCalPlacement
+  onDone: () => void
+  onRestart: () => void
+  onCancel: () => void
 }) {
   const t = useAppStore((s) => s.t)
-  const turns = turnsCompleted(state)
-  const pace = paceTurns(state)
-  const behind = state.phase === 'spinning' && turns + 0.3 < pace
-  const left = secondsLeft(state)
-  const urgent = isUrgent(state)
-  const offAxis = offAxisLevel(state)
-  const phaseKey = `senscal.phase.${phaseSlug(state)}` as TranslationKey
+  const target = SENS_CAL.revolutions
+  const turns = turnsMeasured(acc)
+  const offAxis = offAxisLevel(acc)
+  const onLastTurn = turns >= target - 0.75
+  const gapped = acc.gaps > 0
 
   return (
     <div className="space-y-3">
+      <Heading
+        title={t('senscal.spin.title', { turns: target })}
+        body={t('senscal.spin.body', { turns: target })}
+      />
       <div className="rounded-lg border border-surface-border bg-surface-raised px-4 py-4">
-        <div className="text-sm font-medium text-brand-200">{t(phaseKey)}</div>
-
-        <div className="mt-3 flex items-end justify-between gap-4">
+        <div className="flex items-end justify-between gap-4">
           <div className="text-4xl font-semibold tabular-nums text-slate-50">
-            {t('senscal.run.turns', {
-              turns: turns.toFixed(1),
-              target: state.revolutions
-            })}
+            {t('senscal.spin.turns', { turns: turns.toFixed(1), target })}
           </div>
-          {(state.phase === 'spinning' || state.phase === 'stopping') && (
-            <div
-              className={`text-2xl font-semibold tabular-nums ${
-                urgent ? 'text-rose-300' : 'text-slate-400'
-              }`}
-            >
-              {t('senscal.run.timeleft', { seconds: Math.ceil(left) })}
-            </div>
-          )}
+          <div className="text-sm text-slate-400">
+            {onLastTurn
+              ? t('senscal.spin.ready')
+              : t('senscal.spin.remaining', { turns: Math.max(0, target - turns).toFixed(1) })}
+          </div>
         </div>
 
-        {/* Progress, with the pace marker sitting where the user should be. */}
         <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-surface-border">
           <div
             className="h-full bg-brand-500 transition-[width] duration-150"
-            style={{ width: `${Math.min(100, (turns / state.revolutions) * 100)}%` }}
+            style={{ width: `${Math.min(100, (turns / target) * 100)}%` }}
           />
-          {pace > 0 && (
-            <div
-              className="absolute top-0 h-full w-0.5 bg-amber-300"
-              style={{ left: `${Math.min(100, (pace / state.revolutions) * 100)}%` }}
-            />
-          )}
-        </div>
-        <div className="mt-1 flex justify-between text-xs">
-          <span className={behind ? 'text-amber-300' : 'text-slate-500'}>
-            {behind ? t('senscal.run.behind') : t('senscal.run.pace', { pace: pace.toFixed(1) })}
-          </span>
-          {hasEnoughAngle(state) && (
-            <span className="text-emerald-300">{t('senscal.phase.stopping')}</span>
-          )}
         </div>
 
-        {offAxis !== 'ok' && (
-          <p
-            className={`mt-2 text-sm ${offAxis === 'reject' ? 'text-rose-300' : 'text-amber-300'}`}
-          >
-            {offAxis === 'reject' ? t('senscal.run.offaxis.reject') : t('senscal.run.offaxis.warn')}
-          </p>
+        {gapped ? (
+          <p className="mt-2 text-sm text-rose-300">{t('senscal.spin.gap')}</p>
+        ) : (
+          offAxis !== 'ok' && (
+            <p
+              className={`mt-2 text-sm ${
+                offAxis === 'reject' ? 'text-rose-300' : 'text-amber-300'
+              }`}
+            >
+              {offAxis === 'reject'
+                ? t('senscal.spin.offaxis.reject')
+                : t('senscal.spin.offaxis.warn')}
+            </p>
+          )
         )}
       </div>
 
       <TrackerPreview
-        rotation={rotation}
-        highlightAxis={state.axis}
+        rotation={pose}
+        highlightPlacement={placement}
+        showSpinAxis
         fallbackText={t('senscal.preview.nowebgl')}
       />
+
+      <div className="flex flex-wrap gap-3">
+        <Button disabled={!onLastTurn || gapped} onClick={onDone}>
+          {t('senscal.spin.done')}
+        </Button>
+        <Button variant="secondary" onClick={onRestart}>
+          {t('senscal.spin.restart')}
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          {t('senscal.spin.cancel')}
+        </Button>
+      </div>
     </div>
+  )
+}
+
+function MeasurementNotice({ result, axis }: { result: SpinMeasurement; axis: SensCalAxis }) {
+  const t = useAppStore((s) => s.t)
+  const turns = (result.measuredDeg / 360).toFixed(2)
+  const target = (result.expectedDeg / 360).toFixed(0)
+
+  if (result.verdict === 'gaps') {
+    return (
+      <Notice tone="warn" title={t('senscal.measured.title')}>
+        <p>{t('senscal.measured.gaps')}</p>
+      </Notice>
+    )
+  }
+  if (result.verdict === 'miscount') {
+    return (
+      <Notice tone="warn" title={t('senscal.measured.title')}>
+        <p>{t('senscal.measured.miscount', { turns, target })}</p>
+      </Notice>
+    )
+  }
+
+  const pct = Math.abs((1 - result.impliedScale) * 100).toFixed(2)
+  const direction = result.impliedScale < 1 ? t('senscal.measured.low') : t('senscal.measured.high')
+  return (
+    <Notice tone="success" title={t('senscal.measured.title')}>
+      <p>
+        {t('senscal.measured.body', {
+          target,
+          turns,
+          pct,
+          direction,
+          deg: Math.abs(result.errorDegPerTurn).toFixed(2)
+        })}
+      </p>
+      <p className="mt-2 text-slate-100">
+        {t('senscal.measured.correction', {
+          value: formatSensValue(result.correctionDeg),
+          axis: axis.toUpperCase(),
+          scale: scaleFromCorrection(result.correctionDeg).toFixed(4)
+        })}
+      </p>
+      {result.offAxis !== 'ok' && (
+        <p className="mt-2 text-amber-200">{t('senscal.measured.offaxis')}</p>
+      )}
+    </Notice>
   )
 }
 
 function VerificationNotice({ result }: { result: VerificationResult }) {
   const t = useAppStore((s) => s.t)
+  if (result.gaps > 0) {
+    return (
+      <Notice tone="warn" title={t('senscal.verify.title')}>
+        <p>{t('senscal.verify.gap')}</p>
+      </Notice>
+    )
+  }
   if (!result.withinClamp) {
     return (
       <Notice tone="warn" title={t('senscal.verify.title')}>
@@ -651,14 +809,34 @@ function VerificationNotice({ result }: { result: VerificationResult }) {
   )
 }
 
+/** The live placement reading under the preview, coloured by whether it fits. */
+function ReadingLine({ reading, ok }: { reading: PlacementReading | null; ok: boolean }) {
+  const t = useAppStore((s) => s.t)
+  const label = reading
+    ? t(`senscal.reading.${reading}` as TranslationKey)
+    : t('senscal.reading.none')
+  return (
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <span className="text-slate-300">{label}</span>
+      <span className={ok ? 'text-emerald-300' : 'text-amber-300'}>
+        {ok ? t('senscal.reading.ok') : t('senscal.reading.wrong')}
+      </span>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Small presentational helpers
 // ---------------------------------------------------------------------------
 
-function AxisHeading({ title, body, progress }: { title: string; body: string; progress: string }) {
+function Heading({ title, body, progress }: { title: string; body: string; progress?: string }) {
   return (
     <div>
-      <div className="text-xs font-medium uppercase tracking-wider text-slate-500">{progress}</div>
+      {progress && (
+        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">
+          {progress}
+        </div>
+      )}
       <h2 className="mt-1 text-lg font-semibold text-slate-50">{title}</h2>
       <p className="mt-1 text-sm text-slate-400">{body}</p>
     </div>
@@ -709,40 +887,22 @@ function Notice({
   )
 }
 
-/** Phase → translation-key suffix. */
-function phaseSlug(state: SensCalState): string {
-  switch (state.phase) {
-    case 'ready-to-spin':
-      return 'ready'
-    case 'bias':
-      return 'bias'
-    case 'spinning':
-      return 'spinning'
-    case 'stopping':
-      return 'stopping'
-    case 'complete':
-      return 'complete'
-    default:
-      return 'sending'
+/** Summary line for one axis on the done screen. */
+function outcomeText(
+  t: (key: TranslationKey, vars?: Record<string, string | number>) => string,
+  outcome: AxisOutcome,
+  correction: number | null
+): string {
+  if (outcome === 'skipped' || outcome === 'pending' || correction === null) {
+    return t('senscal.done.skipped')
   }
-}
-
-/** Failure → translation-key suffix. */
-function failureKey(state: SensCalState): string {
-  switch (state.failure) {
-    case 'rejected':
-      return 'rejected'
-    case 'no-ack':
-      return 'noack'
-    case 'no-spin':
-      return 'nospin'
-    case 'aborted':
-      return 'aborted'
+  const value = formatSensValue(correction)
+  switch (outcome) {
+    case 'verified':
+      return t('senscal.done.verified', { value })
+    case 'unverified':
+      return t('senscal.done.unverified', { value })
     default:
-      return 'timeout'
+      return t('senscal.done.applied', { value })
   }
-}
-
-function outcomeKey(outcome: AxisOutcome): string {
-  return outcome === 'passed' ? 'passed' : outcome === 'skipped' ? 'skipped' : 'failed'
 }

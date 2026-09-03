@@ -8,7 +8,7 @@ import type {
   PairingEvent,
   ReceiverConsoleEvent,
   ReceiverDfuRequest,
-  SensCalRequest
+  SensSetRequest
 } from '@shared/types'
 
 const api: Api = {
@@ -54,7 +54,7 @@ const api: Api = {
       return () => ipcRenderer.removeListener('receiver:console-event', listener)
     },
     listSlots: () => ipcRenderer.invoke('receiver:list-slots'),
-    startSensCal: (req: SensCalRequest) => ipcRenderer.invoke('receiver:start-sens-cal', req)
+    setSens: (req: SensSetRequest) => ipcRenderer.invoke('receiver:set-sens', req)
   },
   firmware: {
     getCatalog: () => ipcRenderer.invoke('firmware:get-catalog'),
