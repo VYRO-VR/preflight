@@ -174,7 +174,10 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
     const unsubscribe = useAppStore.subscribe((state) => {
       const quat = state.liveState.trackers.find((x) => x.id === trackerId)?.rotation
       if (!quat) return
-      setAcc((a) => pushRotation(a, quat, performance.now()))
+      // The main process's arrival stamp, so renderer lag never reads as a
+      // feed gap; a store change that carries no new sample repeats the stamp
+      // and the accumulator ignores it.
+      setAcc((a) => pushRotation(a, quat, state.liveState.atMs ?? performance.now()))
     })
     return unsubscribe
   }, [isLive, trackerId])

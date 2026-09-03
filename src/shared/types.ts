@@ -101,6 +101,14 @@ export interface SlimeVrLiveState {
   connected: boolean
   serverVersion?: string
   trackers: TrackerInfo[]
+  /**
+   * When this state was produced, on the main process's monotonic clock
+   * (`performance.now()` there, so the origin means nothing to the renderer —
+   * only differences between two states are meaningful). Stamped at arrival
+   * from SlimeVR Server rather than when the renderer gets around to it, so
+   * a busy renderer delays a sample without changing its timing.
+   */
+  atMs?: number
 }
 
 // ---------------------------------------------------------------------------

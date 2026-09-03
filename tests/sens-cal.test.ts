@@ -36,6 +36,7 @@ function spin({
   dps,
   stepMs = 30,
   startMs = 0,
+  startDeg = 0,
   tiltDeg = 0,
   acc = emptyAccumulator()
 }: {
@@ -43,6 +44,8 @@ function spin({
   dps: number
   stepMs?: number
   startMs?: number
+  /** Yaw the spin starts from, when it continues an earlier one. */
+  startDeg?: number
   tiltDeg?: number
   acc?: TurnAccumulator
 }): { acc: TurnAccumulator; endMs: number; samples: { quat: Quaternion; atMs: number }[] } {
@@ -54,7 +57,7 @@ function spin({
   // delivers the full angle rather than one step short of it.
   for (let ms = 0; ms <= durationMs; ms = Math.min(ms + stepMs, durationMs)) {
     const progressed = (ms / durationMs) * totalDeg
-    const quat = multiply(yaw(progressed), tilt)
+    const quat = multiply(yaw(startDeg + progressed), tilt)
     const atMs = startMs + ms
     samples.push({ quat, atMs })
     out = pushRotation(out, quat, atMs)
@@ -152,10 +155,11 @@ describe('turn accumulator', () => {
     expect(acc.gaps).toBe(1)
   })
 
-  it('re-seeds on a gap long enough for a spin to alias', () => {
-    // 300 ms is short enough to look like a live sample, but a fast spin can
-    // cover more than 180° in it — and past 180° a step reads as the shorter
-    // rotation the other way, silently subtracting turns from the count.
+  it('re-seeds on an early gap long enough for a spin to alias', () => {
+    // Before the rate is primed there is nothing to predict from: 300 ms is
+    // short enough to look like a live sample, but a fast spin can cover more
+    // than 180° in it — and past 180° a step reads as the shorter rotation
+    // the other way, silently subtracting turns from the count.
     let acc = pushRotation(emptyAccumulator(), yaw(0), 0)
     acc = pushRotation(acc, yaw(216), 300)
     expect(acc.totalDeg).toBe(0)
@@ -180,6 +184,75 @@ describe('turn accumulator', () => {
     acc = pushRotation(acc, yaw(216), 300) // dropped samples: re-seeds here
     acc = pushRotation(acc, yaw(246), 330)
     expect(acc.totalDeg).toBeCloseTo(30, 6)
+  })
+
+  it('ignores a repeated notification at the same instant', () => {
+    let { acc } = spin({ totalDeg: 360, dps: 360 })
+    const before = acc
+    acc = pushRotation(acc, acc.lastQuat!, acc.lastAtMs!)
+    expect(acc).toBe(before)
+    expect(acc.gaps).toBe(0)
+  })
+
+  it('bridges a mid-spin stall by predicting the rotation from the spin rate', () => {
+    // 1 turn/s, then the feed goes quiet for 700 ms while the spin carries on:
+    // 252° of real rotation, which the shortest arc would read as -108°.
+    const { acc: spun, endMs } = spin({ totalDeg: 1080, dps: 360 })
+    const acc = pushRotation(spun, yaw(1080 + 252), endMs + 700)
+    expect(acc.totalDeg).toBeCloseTo(1332, 3)
+    expect(acc.gaps).toBe(0)
+    // And the count carries on correctly afterwards.
+    const rest = spin({
+      totalDeg: 3600 - 1332,
+      dps: 360,
+      startMs: endMs + 730,
+      startDeg: 1332,
+      acc
+    })
+    expect(turnsMeasured(rest.acc)).toBeCloseTo(10, 2)
+    expect(rest.acc.gaps).toBe(0)
+  })
+
+  it('bridges a stall of more than a whole turn when the rate predicts it', () => {
+    const { acc: spun, endMs } = spin({ totalDeg: 1080, dps: 360 })
+    const acc = pushRotation(spun, yaw(1080 + 400), endMs + 1100) // 400° in 1.1 s
+    expect(acc.totalDeg).toBeCloseTo(1480, 3)
+    expect(acc.gaps).toBe(0)
+  })
+
+  it('gives up on a stall too long to bridge', () => {
+    const { acc: spun, endMs } = spin({ totalDeg: 1080, dps: 360 })
+    const acc = pushRotation(spun, yaw(1080 + 100), endMs + 2000)
+    expect(acc.gaps).toBe(1)
+    expect(acc.totalDeg).toBeCloseTo(1080, 3)
+  })
+
+  it('does not count a stall at rest as a gap', () => {
+    let { acc } = spin({ totalDeg: 360, dps: 360 })
+    const last = acc.lastQuat!
+    let atMs = acc.lastAtMs!
+    for (let i = 0; i < 40; i++) acc = pushRotation(acc, last, (atMs += 30))
+    expect(isStill(acc)).toBe(true)
+    acc = pushRotation(acc, last, atMs + 5000) // the tracker dozed off
+    expect(acc.gaps).toBe(0)
+    expect(acc.totalDeg).toBeCloseTo(360, 3)
+  })
+
+  it('counts a stall at rest as a gap if the tracker moved meanwhile', () => {
+    let { acc } = spin({ totalDeg: 360, dps: 360 })
+    const last = acc.lastQuat!
+    let atMs = acc.lastAtMs!
+    for (let i = 0; i < 40; i++) acc = pushRotation(acc, last, (atMs += 30))
+    acc = pushRotation(acc, yaw(360 + 150), atMs + 5000)
+    expect(acc.gaps).toBe(1)
+  })
+
+  it('rejects a jump the spin cannot explain, such as a reset in SlimeVR', () => {
+    const { acc: spun, endMs } = spin({ totalDeg: 1080, dps: 360 })
+    // Expected ~11° in 30 ms; a 170° jump is neither that nor a whole turn off.
+    const acc = pushRotation(spun, yaw(1080 + 170), endMs + 30)
+    expect(acc.gaps).toBe(1)
+    expect(acc.totalDeg).toBeCloseTo(1080, 3)
   })
 
   it('keeps counting at the idle feed rate, in case the rate change is lost', () => {
