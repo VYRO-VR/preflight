@@ -29,7 +29,9 @@ export function SystemStep() {
         label={t('step.system.os')}
         status={loading ? running : info && /windows/i.test(info.osName) ? 'pass' : 'warn'}
         value={info?.osName}
-        detail={!info || /windows/i.test(info?.osName ?? '') ? undefined : 'Windows is recommended.'}
+        detail={
+          !info || /windows/i.test(info?.osName ?? '') ? undefined : 'Windows is recommended.'
+        }
       />
       <CheckRow
         label={t('step.system.arch')}
@@ -38,7 +40,9 @@ export function SystemStep() {
       />
       <CheckRow
         label={t('step.system.memory')}
-        status={loading ? running : (info?.totalMemoryGb ?? 0) >= SUPPORTED.minMemoryGb ? 'pass' : 'warn'}
+        status={
+          loading ? running : (info?.totalMemoryGb ?? 0) >= SUPPORTED.minMemoryGb ? 'pass' : 'warn'
+        }
         value={info ? `${info.totalMemoryGb} GB` : undefined}
       />
       <div className="pt-2">

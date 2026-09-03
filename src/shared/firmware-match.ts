@@ -42,7 +42,9 @@ export function commitsEqual(a: string, b: string): boolean {
  */
 export function matchToLatest(installed?: string, latestCommit?: string): FirmwareMatch {
   const current = commitToken(installed)
-  const latest = latestCommit ? commitToken(latestCommit) ?? latestCommit.toLowerCase() : undefined
+  const latest = latestCommit
+    ? (commitToken(latestCommit) ?? latestCommit.toLowerCase())
+    : undefined
   if (!current || !latest) return { status: 'unknown', current, latest }
   return { status: commitsEqual(current, latest) ? 'match' : 'mismatch', current, latest }
 }

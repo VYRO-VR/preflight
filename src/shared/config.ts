@@ -96,6 +96,16 @@ export const BOOTLOADER_VOLUME_LABELS = [
 // SlimeVR Server SolarXR WebSocket feed (same endpoint the SlimeVR GUI uses).
 export const SLIMEVR_WS_URL = 'ws://127.0.0.1:21110'
 
+// How often the SolarXR data feed is allowed to push an update, in
+// milliseconds. `idle` is the app-wide default — status/battery lists do not
+// need more, and every update crosses an IPC boundary to the renderer. Views
+// that animate orientation (the 3D preview, the sensitivity-calibration turn
+// counter) request `live` while mounted and drop back to `idle` on unmount.
+export const SLIMEVR_FEED_RATE_MS = {
+  idle: 200,
+  live: 30
+}
+
 // Firmware source — the VYRO VR firmware CI (github.com/VYRO-VR/Firmware). It
 // builds every board VYRO sells and publishes dated releases whose assets are
 // named `VVR_<Receiver|Tracker>_<Board>_<commit>.<uf2|hex>` (see
@@ -170,6 +180,92 @@ export const RECEIVER_SERIAL = {
   buildDateRegex: /\bbuild\s+(\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{1,2}:\d{2}:\d{2})?)/i,
   /** `Target: foxdongle_uf2/nrf52840` → the board target. */
   boardRegex: /^target:\s*(\S+)/im
+}
+
+// Guided gyro sensitivity calibration (`sens auto` on the tracker firmware).
+//
+// The tracker measures its gyro scale factor by having the user spin it a
+// known number of turns about one axis. Everything here mirrors constants in
+// the firmware's `cal_sens.c` — if the firmware changes, change them here and
+// nowhere else. The flow reads them to drive its countdown, pace guide, and
+// failure copy, so a stale value shows up as bad coaching, not a crash.
+//
+// VERIFY against the firmware build actually shipping on VYRO trackers
+// (checked against VYRO-VR/jitingcn-smol-slime-firmware @ 2e8f2b4).
+export const SENS_CAL = {
+  /**
+   * Revolutions requested per axis. The firmware default is 2; 10 buys a much
+   * lower alignment error floor (±1° over 10 turns = 0.03%, vs 0.06% at 6),
+   * well under the ~0.5% scale error being removed. Raising this eats into
+   * `spinTimeoutMs`, which is already tight — see `paceSecondsPerTurn`.
+   */
+  revolutions: 10,
+  /** Firmware ceiling (`SENS_CAL_MAX_REVOLUTIONS` / `SENS_AUTO_MAX_REVOLUTIONS`). */
+  maxRevolutions: 100,
+
+  /** Axes offered, in the order the flow walks the user through them. */
+  axes: ['z', 'x', 'y'] as const,
+
+  /** How long the tracker averages gyro bias before asking for the spin. */
+  biasWindowMs: 1000,
+  /** `SENS_CAL_START_TIMEOUT_MS` — time to begin spinning after the command. */
+  startTimeoutMs: 30000,
+  /** `SENS_CAL_SPIN_TIMEOUT_MS` — budget for the whole spin, stop included. */
+  spinTimeoutMs: 60000,
+  /** `SENS_CAL_STOP_DWELL_MS` — how long the tracker must be still to stop. */
+  stopDwellMs: 1000,
+  /** `SENS_CAL_START_RATE_DPS` — rate that counts as "spinning". */
+  startRateDps: 30,
+  /** `SENS_CAL_STOP_RATE_DPS` — rate below which the stop dwell can run. */
+  stopRateDps: 10,
+  /** `SENS_CAL_MIN_FRACTION` — fraction of the expected angle required. */
+  minFraction: 0.85,
+  /** `SENS_CAL_MIN_SCALE` / `SENS_CAL_MAX_SCALE` — accepted scale clamp. */
+  minScale: 0.9,
+  maxScale: 1.1,
+  /** `SENS_CAL_MAX_OFF_AXIS_RATIO` — off-axis motion that rejects the run. */
+  offAxisRejectRatio: 0.25,
+  /** Off-axis ratio that only warns. */
+  offAxisWarnRatio: 0.1,
+
+  /**
+   * Pace the on-screen guide asks for, in seconds per turn. Derived, not
+   * independent: `spinTimeoutMs` covers the spin *and* the careful
+   * edge-aligned stop (~2-3 s), so the spin itself has to average faster than
+   * `spinTimeoutMs / revolutions`.
+   */
+  paceSecondsPerTurn: 5.5,
+  /** Remaining seconds under which the countdown turns urgent. */
+  urgentSecondsLeft: 15,
+
+  /**
+   * Verification spin: residual yaw error per turn, in degrees, at or under
+   * which the axis passes. 0.5°/turn ≈ 0.14% remaining scale error.
+   */
+  verifyPassDegPerTurn: 0.5
+}
+
+// Receiver console commands used by the sensitivity-calibration flow. Kept
+// beside RECEIVER_SERIAL rather than inside it because these are *tracker*
+// commands relayed through the receiver's `send` verb, not receiver commands.
+export const RECEIVER_CONSOLE = {
+  /** Lists paired tracker addresses, one per line, in slot order. */
+  listCmd: 'list\n',
+  /** A `list` output line: a 12-hex-digit device address on its own. */
+  listAddressRegex: /^([0-9A-Fa-f]{12})$/,
+  /**
+   * Start a sensitivity calibration on a tracker:
+   * `send <slot> sens auto <axis> <rev>`.
+   */
+  sensAutoCmd: (slot: number, axis: string, revolutions: number): string =>
+    `send ${slot} sens auto ${axis} ${revolutions}\n`,
+  /**
+   * Receiver ack — `Sens auto request sent to tracker 0 on z axis for 10 rev`.
+   * Capture groups: slot, axis, revolutions.
+   */
+  sensAutoAckRegex: /Sens auto request sent to tracker (\d+) on ([xyz]) axis for (\d+) rev/i,
+  /** Receiver rejections — `Invalid axis 'q'` / `Invalid revolutions '0'`. */
+  sensAutoRejectRegex: /Invalid (axis|revolutions)\s+'([^']*)'/i
 }
 
 // Developer bulk flash — the pin-fixture bootloader programming loop behind

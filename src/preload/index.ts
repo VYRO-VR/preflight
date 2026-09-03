@@ -24,7 +24,9 @@ const api: Api = {
       return () => ipcRenderer.removeListener('slimevr:live-state', listener)
     },
     connect: () => ipcRenderer.invoke('slimevr:connect'),
-    disconnect: () => ipcRenderer.invoke('slimevr:disconnect')
+    disconnect: () => ipcRenderer.invoke('slimevr:disconnect'),
+    setFeedRate: (minimumTimeSinceLastMs: number) =>
+      ipcRenderer.invoke('slimevr:set-feed-rate', minimumTimeSinceLastMs)
   },
   usb: {
     detectReceiver: () => ipcRenderer.invoke('usb:detect-receiver')

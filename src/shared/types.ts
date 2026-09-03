@@ -58,10 +58,24 @@ export interface SlimeVrInstall {
   version?: string
 }
 
+/** Orientation quaternion, in SlimeVR Server's reference frame. */
+export interface Quaternion {
+  x: number
+  y: number
+  z: number
+  w: number
+}
+
 export interface TrackerInfo {
   id: string
   name: string
   bodyPart?: string
+  /**
+   * Current orientation. Only present when the data feed was asked for
+   * rotation and the server has a reading — treat `undefined` as "unknown",
+   * not as identity.
+   */
+  rotation?: Quaternion
   /** 0..1 */
   batteryLevel?: number
   batteryVoltage?: number
@@ -317,6 +331,12 @@ export interface Api {
     onLiveState: (cb: (state: SlimeVrLiveState) => void) => () => void
     connect: () => Promise<void>
     disconnect: () => Promise<void>
+    /**
+     * Re-request the data feed at a different maximum rate (see
+     * SLIMEVR_FEED_RATE_MS). Views that animate orientation raise it while
+     * mounted and restore the idle rate on unmount.
+     */
+    setFeedRate: (minimumTimeSinceLastMs: number) => Promise<void>
   }
   usb: {
     detectReceiver: () => Promise<UsbDeviceMatch>

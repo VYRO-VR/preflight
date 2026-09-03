@@ -63,6 +63,7 @@ export function registerIpc(win: BrowserWindow): {
   ipcMain.handle('slimevr:get-install', () => getSlimeVrInstall())
   ipcMain.handle('slimevr:connect', () => slime.connect())
   ipcMain.handle('slimevr:disconnect', () => slime.disconnect())
+  ipcMain.handle('slimevr:set-feed-rate', (_e, ms: number) => slime.setFeedRate(ms))
 
   ipcMain.handle('usb:detect-receiver', () => detectReceiver())
 

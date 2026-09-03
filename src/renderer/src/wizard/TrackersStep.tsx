@@ -27,7 +27,9 @@ export function TrackersStep() {
             : t('step.trackers.waiting')}
         </span>
         <StatusBadge
-          status={!live.connected ? 'running' : online >= expected && expected > 0 ? 'pass' : 'warn'}
+          status={
+            !live.connected ? 'running' : online >= expected && expected > 0 ? 'pass' : 'warn'
+          }
         />
       </div>
 

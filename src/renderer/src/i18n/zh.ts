@@ -119,8 +119,7 @@ export const zh: Record<string, string> = {
   'pair.listen.title': '让追踪器进入配对模式',
   'pair.listen.instruction': '按追踪器的按钮 {presses} 次。LED 会以每秒一次的频率闪烁蓝光。',
   'pair.listen.waiting': '正在监听追踪器…',
-  'pair.listen.timeout':
-    '仍未发现追踪器。请确认 LED 每秒闪烁一次蓝光，然后再按 {presses} 次按钮。',
+  'pair.listen.timeout': '仍未发现追踪器。请确认 LED 每秒闪烁一次蓝光，然后再按 {presses} 次按钮。',
   'pair.paired.title': '新追踪器配对成功！🎉',
   'pair.paired.count': '本次已配对 {count} 个',
   'pair.paired.another': '再配对一个',
@@ -197,8 +196,7 @@ export const zh: Record<string, string> = {
   'fwupdate.noasset': '最新版本中还没有匹配的固件文件。',
   'fwupdate.hexonly':
     '此版本只为该接收器提供了原始 .hex 文件，无法通过 USB 刷写。需要包含 DFU 包（.zip）的版本——或使用 SWD 编程器。',
-  'fwupdate.nonrfutil':
-    '此构建尚未捆绑 hex/DFU 刷写工具（nrfutil），因此无法自动更新该接收器。',
+  'fwupdate.nonrfutil': '此构建尚未捆绑 hex/DFU 刷写工具（nrfutil），因此无法自动更新该接收器。',
   'fwupdate.ack': '我了解更新可能导致设备变砖，并接受该风险。',
   'fwupdate.update': '更新接收器',
   'fwupdate.updating': '正在更新…',

@@ -28,7 +28,11 @@ export function TroubleshootFlow({ onExit }: { onExit: () => void }) {
   const online = live.trackers.filter((tr) => tr.status === 'ok').length
 
   return (
-    <FlowShell title={t('troubleshoot.title')} description={t('troubleshoot.intro')} onExit={onExit}>
+    <FlowShell
+      title={t('troubleshoot.title')}
+      description={t('troubleshoot.intro')}
+      onExit={onExit}
+    >
       <CheckRow
         label={t('troubleshoot.receiver')}
         status={loading && !receiver ? 'running' : receiver?.detected ? 'pass' : 'warn'}
