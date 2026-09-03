@@ -85,6 +85,7 @@ describe('rotationDelta', () => {
     const d = rotationDelta(yaw(0), yaw(10), 30)
     expect(d.aboutUpDeg).toBeCloseTo(10, 6)
     expect(d.offAxisDeg).toBeCloseTo(0, 6)
+    expect(d.totalDeg).toBeCloseTo(10, 6)
   })
 
   it('signs the rotation, so a reversal cancels', () => {
@@ -149,6 +150,39 @@ describe('turn accumulator', () => {
     acc = pushRotation(acc, yaw(170), 5000) // a 5 s gap: the feed dropped out
     expect(acc.totalDeg).toBe(0)
     expect(acc.rateDps).toBe(0)
+  })
+
+  it('re-seeds on a gap long enough for a spin to alias', () => {
+    // 300 ms is short enough to look like a live sample, but a fast spin can
+    // cover more than 180° in it — and past 180° a step reads as the shorter
+    // rotation the other way, silently subtracting turns from the count.
+    let acc = pushRotation(emptyAccumulator(), yaw(0), 0)
+    acc = pushRotation(acc, yaw(216), 300)
+    expect(acc.totalDeg).toBe(0)
+  })
+
+  it('re-seeds on a step whose reading is near the ambiguous half-turn', () => {
+    let acc = pushRotation(emptyAccumulator(), yaw(0), 0)
+    acc = pushRotation(acc, yaw(170), 200)
+    expect(acc.totalDeg).toBe(0)
+  })
+
+  it('still integrates a large step that is unambiguous', () => {
+    let acc = pushRotation(emptyAccumulator(), yaw(0), 0)
+    acc = pushRotation(acc, yaw(140), 200)
+    expect(acc.totalDeg).toBeCloseTo(140, 6)
+  })
+
+  it('keeps counting from the new reference after a re-seed', () => {
+    let acc = pushRotation(emptyAccumulator(), yaw(0), 0)
+    acc = pushRotation(acc, yaw(216), 300) // dropped samples: re-seeds here
+    acc = pushRotation(acc, yaw(246), 330)
+    expect(acc.totalDeg).toBeCloseTo(30, 6)
+  })
+
+  it('keeps counting at the idle feed rate, in case the rate change is lost', () => {
+    const { acc } = spin({ totalDeg: 3600, dps: 360, stepMs: 200 })
+    expect(turnsMeasured(acc)).toBeCloseTo(10, 2)
   })
 })
 

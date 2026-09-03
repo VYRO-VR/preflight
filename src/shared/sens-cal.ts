@@ -32,6 +32,31 @@ const RAD_TO_DEG = 180 / Math.PI
 const RATE_SMOOTHING = 0.3
 
 /**
+ * Largest sample gap still integrated into the turn count.
+ *
+ * This bound is what keeps the count honest, and it is a statement about spin
+ * rate: two orientations 180° apart are ambiguous in direction, and worse, a
+ * step of 180°+x is indistinguishable from one of 180°-x the other way. No
+ * inspection of the quaternions can separate those, so the only defence is to
+ * sample often enough that a real spin cannot cover 180° between samples.
+ *
+ * 180° in 250 ms is 720 °/s — two turns a second, far beyond anything a hand
+ * sliding a tracker on a desk produces, and an order of magnitude above the
+ * ~65 °/s target pace. The live feed runs at 30 ms; even the idle 200 ms rate
+ * stays inside this, so the counter still works if the rate change is lost.
+ */
+const MAX_STEP_MS = 250
+
+/**
+ * Largest single-step rotation still integrated. Secondary to `MAX_STEP_MS`:
+ * it narrows the ambiguous band rather than removing it, since a genuine
+ * 150°-plus step and an aliased one look alike. Within the time bound above,
+ * a reading this large is not a plausible hand spin, so it is treated as
+ * dropped samples.
+ */
+const MAX_STEP_DEG = 150
+
+/**
  * How long to wait for the receiver to echo its `Sens auto request sent …`
  * ack before giving up. The receiver answers immediately or not at all.
  */
@@ -64,6 +89,8 @@ export interface RotationDelta {
   aboutUpDeg: number
   /** Rotation about everything else — tilt and wobble — in degrees. */
   offAxisDeg: number
+  /** Magnitude of the whole step, about every axis, in degrees. */
+  totalDeg: number
   dtMs: number
 }
 
@@ -74,8 +101,9 @@ export interface RotationDelta {
  * reading a yaw angle out of each sample and unwrapping it) is what makes the
  * turn count singularity-free: a yaw extraction degenerates when the tracker
  * is tipped on edge, exactly the placement two of the three axes require.
- * The only requirement is that a single step stays under 180°, which at 30 ms
- * and 360 °/s means ~11°.
+ * The only requirement is that a single step stays under 180°, which at the
+ * 30 ms live feed rate holds up to 6000 °/s. `pushRotation` enforces the
+ * bound (`MAX_STEP_MS`) rather than trusting the feed to keep up.
  */
 export function rotationDelta(prev: Quaternion, curr: Quaternion, dtMs: number): RotationDelta {
   let d = multiply(curr, conjugate(prev))
@@ -83,7 +111,7 @@ export function rotationDelta(prev: Quaternion, curr: Quaternion, dtMs: number):
   if (d.w < 0) d = { x: -d.x, y: -d.y, z: -d.z, w: -d.w }
 
   const sin = Math.hypot(d.x, d.y, d.z)
-  if (sin < 1e-9) return { aboutUpDeg: 0, offAxisDeg: 0, dtMs }
+  if (sin < 1e-9) return { aboutUpDeg: 0, offAxisDeg: 0, totalDeg: 0, dtMs }
 
   const angleDeg = 2 * Math.atan2(sin, d.w) * RAD_TO_DEG
   // Axis of the delta, as a unit vector; its Y component is the fraction of
@@ -93,6 +121,7 @@ export function rotationDelta(prev: Quaternion, curr: Quaternion, dtMs: number):
   return {
     aboutUpDeg: angleDeg * upComponent,
     offAxisDeg: angleDeg * offComponent,
+    totalDeg: angleDeg,
     dtMs
   }
 }
@@ -115,8 +144,9 @@ export function emptyAccumulator(): TurnAccumulator {
 
 /**
  * Fold one orientation sample in. The first sample only seeds the reference;
- * samples with a non-positive or implausibly large gap are used to re-seed
- * rather than integrated, so a stalled feed cannot invent turns.
+ * samples the accumulator cannot trust are used to re-seed rather than
+ * integrated, so neither a stalled feed nor an aliased step can quietly
+ * change the turn count.
  */
 export function pushRotation(
   acc: TurnAccumulator,
@@ -126,12 +156,16 @@ export function pushRotation(
   if (!acc.lastQuat || acc.lastAtMs === null) {
     return { ...acc, lastQuat: quat, lastAtMs: atMs }
   }
+  const reseed = { ...acc, lastQuat: quat, lastAtMs: atMs, rateDps: 0 }
+
   const dtMs = atMs - acc.lastAtMs
-  if (dtMs <= 0 || dtMs > 500) {
-    return { ...acc, lastQuat: quat, lastAtMs: atMs, rateDps: 0 }
-  }
+  if (dtMs <= 0 || dtMs > MAX_STEP_MS) return reseed
 
   const delta = rotationDelta(acc.lastQuat, quat, dtMs)
+  // Belt and braces: within the time bound a step this large is not real
+  // motion, so integrating it would more likely subtract turns than add them.
+  if (delta.totalDeg > MAX_STEP_DEG) return reseed
+
   const instantDps = Math.abs(delta.aboutUpDeg) / (dtMs / 1000)
   return {
     lastQuat: quat,

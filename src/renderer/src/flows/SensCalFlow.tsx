@@ -655,15 +655,7 @@ function VerificationNotice({ result }: { result: VerificationResult }) {
 // Small presentational helpers
 // ---------------------------------------------------------------------------
 
-function AxisHeading({
-  title,
-  body,
-  progress
-}: {
-  title: string
-  body: string
-  progress: string
-}) {
+function AxisHeading({ title, body, progress }: { title: string; body: string; progress: string }) {
   return (
     <div>
       <div className="text-xs font-medium uppercase tracking-wider text-slate-500">{progress}</div>
