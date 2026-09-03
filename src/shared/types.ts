@@ -150,6 +150,18 @@ export type PairingEvent =
   | { type: 'log'; line: string }
   | { type: 'error'; message: string }
 
+/**
+ * Whether the receiver is currently held in pairing mode. Owned by the main
+ * process (the single `ReceiverPairingClient`) so any part of the UI — the
+ * pairing flow or the global indicator — can agree on one answer.
+ */
+export interface PairingState {
+  /** True while a port is open and the receiver is in pairing mode. */
+  active: boolean
+  /** Serial path in use, or the last one used, so the UI can offer a restart. */
+  path: string | null
+}
+
 // ---------------------------------------------------------------------------
 // Firmware
 // ---------------------------------------------------------------------------
@@ -316,6 +328,8 @@ export interface Api {
     startPairing: (path: string) => Promise<void>
     /** Exit pairing mode and release the port. */
     stopPairing: () => Promise<void>
+    /** Current pairing state, for UI that mounts after a session started. */
+    getPairingState: () => Promise<PairingState>
     /** Subscribe to pairing events. Returns an unsubscribe function. */
     onPairingEvent: (cb: (event: PairingEvent) => void) => () => void
     /** Read the receiver's firmware info over its serial console. */

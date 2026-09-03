@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events'
 import { SerialPort } from 'serialport'
 import { RECEIVER_SERIAL, RECEIVER_USB_IDS } from '@shared/config'
-import type { PairingEvent, ReceiverInfo, ReceiverPort } from '@shared/types'
+import type { PairingEvent, PairingState, ReceiverInfo, ReceiverPort } from '@shared/types'
 import { PairingParser, parseReceiverInfo } from './receiver-protocol'
 
 /** Parse a hex USB id ("1209", "0x1209", "520F") to a number for comparison. */
@@ -91,6 +91,8 @@ function delay(ms: number): Promise<void> {
 export class ReceiverPairingClient extends EventEmitter {
   private port: SerialPort | null = null
   private parser = new PairingParser()
+  /** Path of the open port, or the last one used, kept for restarts. */
+  private lastPath: string | null = null
 
   /** Type-safe event subscription (the only event we emit is `event`). */
   override on(event: 'event', listener: (e: PairingEvent) => void): this {
@@ -101,17 +103,36 @@ export class ReceiverPairingClient extends EventEmitter {
     this.emit('event', e)
   }
 
+  /**
+   * Current pairing state. The renderer mirrors this via `status` events, but
+   * a view that mounts mid-session needs to be able to ask.
+   */
+  getState(): PairingState {
+    return { active: this.port !== null, path: this.lastPath }
+  }
+
   async startPairing(path: string): Promise<void> {
-    await this.stopPairing()
+    // Silent: replacing one session with another is not a `stopped` transition,
+    // and listeners that track pairing state would flicker off if it were.
+    await this.closePort(true)
     this.parser = new PairingParser()
+    this.lastPath = path
     this.send({ type: 'status', status: 'opening' })
 
     const port = new SerialPort({ path, baudRate: RECEIVER_SERIAL.baudRate, autoOpen: false })
     this.port = port
 
-    await new Promise<void>((resolve, reject) => {
-      port.open((err) => (err ? reject(err) : resolve()))
-    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        port.open((err) => (err ? reject(err) : resolve()))
+      })
+    } catch (err) {
+      // The port never opened, so there is nothing to close — just make sure
+      // state and listeners agree that no session is running.
+      this.port = null
+      this.send({ type: 'status', status: 'stopped' })
+      throw err
+    }
 
     port.on('data', (buf: Buffer) => {
       for (const e of this.parser.push(buf.toString('utf-8'))) this.send(e)
@@ -123,6 +144,14 @@ export class ReceiverPairingClient extends EventEmitter {
   }
 
   async stopPairing(): Promise<void> {
+    await this.closePort(false)
+  }
+
+  /**
+   * Leave pairing mode and release the port. `silent` suppresses the `stopped`
+   * event for the internal close that precedes a new session.
+   */
+  private async closePort(silent: boolean): Promise<void> {
     const port = this.port
     this.port = null
     if (!port) return
@@ -139,6 +168,6 @@ export class ReceiverPairingClient extends EventEmitter {
     } catch {
       // best-effort close
     }
-    this.send({ type: 'status', status: 'stopped' })
+    if (!silent) this.send({ type: 'status', status: 'stopped' })
   }
 }

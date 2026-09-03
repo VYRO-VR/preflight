@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PAIRING_PRESSES } from '@shared/config'
 import type { ReceiverPort } from '@shared/types'
 import { useAppStore } from '../store/useAppStore'
@@ -6,7 +6,7 @@ import { FlowShell } from '../components/FlowShell'
 import { Button } from '../components/Button'
 import { StatusBadge } from '../components/StatusBadge'
 
-type Phase = 'connecting' | 'choosing' | 'none' | 'pairing' | 'error'
+type Phase = 'connecting' | 'choosing' | 'none' | 'pairing' | 'stopped' | 'error'
 
 interface PairedTracker {
   id: string
@@ -17,18 +17,27 @@ const TIMEOUT_MS = 20000
 
 export function PairingFlow({ onExit }: { onExit: () => void }) {
   const t = useAppStore((s) => s.t)
+  // Pairing mode is global state (the top-corner indicator can turn it on or
+  // cancel it too), so go through the store rather than window.api directly.
+  const pairingActive = useAppStore((s) => s.pairing.active)
+  const enterPairingMode = useAppStore((s) => s.startPairing)
+  const exitPairingMode = useAppStore((s) => s.stopPairing)
+
   const [phase, setPhase] = useState<Phase>('connecting')
   const [ports, setPorts] = useState<ReceiverPort[]>([])
   const [paired, setPaired] = useState<PairedTracker[]>([])
   const [timedOut, setTimedOut] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  /** Receiver this flow is pairing to, so a cancelled session can restart. */
+  const [activePath, setActivePath] = useState<string | null>(null)
 
   const startPairing = async (path: string): Promise<void> => {
+    setActivePath(path)
     setPhase('pairing')
-    try {
-      await window.api.receiver.startPairing(path)
-    } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : String(e))
+    await enterPairingMode(path)
+    const { error } = useAppStore.getState().pairing
+    if (error) {
+      setErrorMsg(error)
       setPhase('error')
     }
   }
@@ -50,7 +59,9 @@ export function PairingFlow({ onExit }: { onExit: () => void }) {
     const off = window.api.receiver.onPairingEvent((e) => {
       if (e.type === 'paired') {
         setPaired((prev) =>
-          prev.some((p) => p.address === e.address) ? prev : [...prev, { id: e.id, address: e.address }]
+          prev.some((p) => p.address === e.address)
+            ? prev
+            : [...prev, { id: e.id, address: e.address }]
         )
       } else if (e.type === 'error') {
         setErrorMsg(e.message)
@@ -73,6 +84,19 @@ export function PairingFlow({ onExit }: { onExit: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Pairing mode can be cancelled from the top-corner indicator while this
+  // flow is open. Watch for the on→off edge (not merely "not active", which is
+  // also true in the moment between starting and the receiver reporting in).
+  const wasActive = useRef(false)
+  useEffect(() => {
+    if (pairingActive) {
+      wasActive.current = true
+    } else if (wasActive.current) {
+      wasActive.current = false
+      setPhase((p) => (p === 'pairing' ? 'stopped' : p))
+    }
+  }, [pairingActive])
+
   // Show a help hint if nothing pairs for a while. Resets whenever a tracker
   // pairs (paired.length changes) or we (re)enter the pairing phase.
   useEffect(() => {
@@ -89,20 +113,15 @@ export function PairingFlow({ onExit }: { onExit: () => void }) {
   // released) before the component unmounts, instead of relying on the
   // fire-and-forget cleanup below.
   const exit = async (): Promise<void> => {
-    await window.api.receiver.stopPairing()
+    await exitPairingMode()
     onExit()
   }
 
-  const footer =
-    phase === 'pairing' ? (
-      <Button onClick={exit}>{t('pair.done')}</Button>
-    ) : undefined
+  const footer = phase === 'pairing' ? <Button onClick={exit}>{t('pair.done')}</Button> : undefined
 
   return (
     <FlowShell title={t('pair.title')} onExit={exit} footer={footer}>
-      {phase === 'connecting' && (
-        <Hint status="running" text={t('pair.connect.searching')} />
-      )}
+      {phase === 'connecting' && <Hint status="running" text={t('pair.connect.searching')} />}
 
       {phase === 'choosing' && (
         <div className="space-y-3">
@@ -142,6 +161,21 @@ export function PairingFlow({ onExit }: { onExit: () => void }) {
               {t('pair.connect.retry')}
             </Button>
           </div>
+        </div>
+      )}
+
+      {phase === 'stopped' && (
+        <div className="space-y-3">
+          <div className="rounded-lg border border-surface-border bg-surface-raised px-4 py-3 text-sm">
+            <strong className="text-slate-100">{t('pair.stopped.title')}</strong>
+            <p className="mt-1 text-slate-400">{t('pair.stopped.body')}</p>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => (activePath ? startPairing(activePath) : search())}
+          >
+            {t('pair.stopped.resume')}
+          </Button>
         </div>
       )}
 

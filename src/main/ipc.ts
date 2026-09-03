@@ -69,6 +69,7 @@ export function registerIpc(win: BrowserWindow): {
   ipcMain.handle('receiver:list', () => listReceivers())
   ipcMain.handle('receiver:start-pairing', (_e, path: string) => receiver.startPairing(path))
   ipcMain.handle('receiver:stop-pairing', () => receiver.stopPairing())
+  ipcMain.handle('receiver:get-pairing-state', () => receiver.getState())
   ipcMain.handle('receiver:read-info', (_e, path: string) => readReceiverInfo(path))
   ipcMain.handle('receiver:enter-dfu', (_e, path: string) => enterReceiverDfu(path))
 

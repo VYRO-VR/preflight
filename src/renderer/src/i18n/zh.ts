@@ -126,6 +126,17 @@ export const zh: Record<string, string> = {
   'pair.paired.another': '再配对一个',
   'pair.done': '完成',
   'pair.error.title': '出了点问题',
+  'pair.stopped.title': '配对模式已关闭',
+  'pair.stopped.body': '接收器不再接受新的追踪器。重新开启配对模式即可继续。',
+  'pair.stopped.resume': '重新开启配对模式',
+
+  // 全局配对模式指示灯
+  'pairing.indicator.on': '配对模式已开启',
+  'pairing.indicator.off': '配对模式已关闭',
+  'pairing.indicator.working': '处理中…',
+  'pairing.indicator.start': '开启配对模式',
+  'pairing.indicator.stop': '取消配对模式',
+  'pairing.indicator.dismiss': '关闭',
 
   // Calibrate flow
   'calibrate.title': '校准追踪器',
