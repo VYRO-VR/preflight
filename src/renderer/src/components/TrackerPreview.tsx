@@ -20,7 +20,7 @@ import {
   Vector3,
   WebGLRenderer
 } from 'three'
-import type { Quaternion as QuatObject } from '@shared/types'
+import type { Quaternion as QuatObject, SensCalAxis } from '@shared/types'
 
 /**
  * Live 3D orientation preview for one tracker.
@@ -44,17 +44,14 @@ import type { Quaternion as QuatObject } from '@shared/types'
 const CANVAS_HEIGHT = 200
 const GROUND_COLOR = '#4444aa'
 
-/** Body axis of the tracker, matching the firmware's `sens auto <x|y|z>`. */
-export type TrackerAxis = 'x' | 'y' | 'z'
-
 /** Unit vectors for the tracker's own axes, in the model's local frame. */
-const AXIS_VECTORS: Record<TrackerAxis, Vector3> = {
+const AXIS_VECTORS: Record<SensCalAxis, Vector3> = {
   x: new Vector3(1, 0, 0),
   y: new Vector3(0, 1, 0),
   z: new Vector3(0, 0, 1)
 }
 
-const AXIS_COLORS: Record<TrackerAxis, number> = {
+const AXIS_COLORS: Record<SensCalAxis, number> = {
   x: 0xff5f6d,
   y: 0x5fe08b,
   z: 0x6aa8ff
@@ -64,7 +61,7 @@ interface PreviewContext {
   /** Apply a new orientation. Cheap: no scene rebuild. */
   update: (quat: QuatObject) => void
   /** Highlight one body axis (the axis a calibration spin is about). */
-  setHighlight: (axis: TrackerAxis | null) => void
+  setHighlight: (axis: SensCalAxis | null) => void
   /** Cancel the RAF loop and release the WebGL context. */
   dispose: () => void
 }
@@ -121,7 +118,7 @@ function createPreview(canvas: HTMLCanvasElement): PreviewContext {
   modelGroup.add(face)
 
   // Body-axis arrows, drawn in the tracker's own frame so they turn with it.
-  const arrows: Record<TrackerAxis, ArrowHelper> = {
+  const arrows: Record<SensCalAxis, ArrowHelper> = {
     x: new ArrowHelper(AXIS_VECTORS.x, new Vector3(0, 0, 0), 2.2, AXIS_COLORS.x),
     y: new ArrowHelper(AXIS_VECTORS.y, new Vector3(0, 0, 0), 2.2, AXIS_COLORS.y),
     z: new ArrowHelper(AXIS_VECTORS.z, new Vector3(0, 0, 0), 2.2, AXIS_COLORS.z)
@@ -164,8 +161,8 @@ function createPreview(canvas: HTMLCanvasElement): PreviewContext {
     trackerGroup.quaternion.slerp(target, 0.5)
   }
 
-  const setHighlight = (axis: TrackerAxis | null): void => {
-    for (const key of Object.keys(arrows) as TrackerAxis[]) {
+  const setHighlight = (axis: SensCalAxis | null): void => {
+    for (const key of Object.keys(arrows) as SensCalAxis[]) {
       const active = axis === null || key === axis
       arrows[key].setLength(active ? (axis ? 3.2 : 2.2) : 1.4)
       arrows[key].setColor(new Color(active ? AXIS_COLORS[key] : 0x475069))
@@ -196,7 +193,7 @@ interface Props {
   /** Latest orientation from the live feed; undefined while unknown. */
   rotation?: QuatObject
   /** Emphasise one body axis (the axis a calibration spin is about). */
-  highlightAxis?: TrackerAxis | null
+  highlightAxis?: SensCalAxis | null
   /** Shown in place of the canvas when WebGL is unavailable. */
   fallbackText?: string
 }

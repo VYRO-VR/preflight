@@ -6,7 +6,9 @@ import type {
   BulkFlashEvent,
   FlashRequest,
   PairingEvent,
-  ReceiverDfuRequest
+  ReceiverConsoleEvent,
+  ReceiverDfuRequest,
+  SensCalRequest
 } from '@shared/types'
 
 const api: Api = {
@@ -42,7 +44,17 @@ const api: Api = {
       return () => ipcRenderer.removeListener('receiver:pairing-event', listener)
     },
     readInfo: (path: string) => ipcRenderer.invoke('receiver:read-info', path),
-    enterDfu: (path: string) => ipcRenderer.invoke('receiver:enter-dfu', path)
+    enterDfu: (path: string) => ipcRenderer.invoke('receiver:enter-dfu', path),
+    openConsole: (path: string) => ipcRenderer.invoke('receiver:open-console', path),
+    closeConsole: () => ipcRenderer.invoke('receiver:close-console'),
+    getConsoleState: () => ipcRenderer.invoke('receiver:get-console-state'),
+    onConsoleEvent: (cb: (event: ReceiverConsoleEvent) => void) => {
+      const listener = (_e: unknown, event: ReceiverConsoleEvent) => cb(event)
+      ipcRenderer.on('receiver:console-event', listener)
+      return () => ipcRenderer.removeListener('receiver:console-event', listener)
+    },
+    listSlots: () => ipcRenderer.invoke('receiver:list-slots'),
+    startSensCal: (req: SensCalRequest) => ipcRenderer.invoke('receiver:start-sens-cal', req)
   },
   firmware: {
     getCatalog: () => ipcRenderer.invoke('firmware:get-catalog'),

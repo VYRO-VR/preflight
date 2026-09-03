@@ -36,18 +36,12 @@ describe('compareVersions', () => {
 
 describe('pickRecommended', () => {
   it('prefers an explicitly marked release', () => {
-    const releases = [
-      release({ tag: 'v1.0.0' }),
-      release({ tag: 'v0.9.0', recommended: true })
-    ]
+    const releases = [release({ tag: 'v1.0.0' }), release({ tag: 'v0.9.0', recommended: true })]
     expect(pickRecommended(releases)?.tag).toBe('v0.9.0')
   })
 
   it('falls back to the first stable release with an asset', () => {
-    const releases = [
-      release({ tag: 'v1.1.0', prerelease: true }),
-      release({ tag: 'v1.0.0' })
-    ]
+    const releases = [release({ tag: 'v1.1.0', prerelease: true }), release({ tag: 'v1.0.0' })]
     expect(pickRecommended(releases)?.tag).toBe('v1.0.0')
   })
 

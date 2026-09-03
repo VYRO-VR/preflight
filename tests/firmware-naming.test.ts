@@ -89,9 +89,9 @@ describe('parseFirmwareName', () => {
   it('handles commit-hash edge cases', () => {
     // A hash with no decimal digits and a full-length one are still hashes.
     expect(parseFirmwareName('VVR_Tracker_Mochi_abcdefa.uf2')?.commit).toBe('abcdefa')
-    expect(
-      parseFirmwareName(`VVR_Tracker_Mochi_${'f750a5b23'.padEnd(40, '0')}.uf2`)?.board
-    ).toBe('Mochi')
+    expect(parseFirmwareName(`VVR_Tracker_Mochi_${'f750a5b23'.padEnd(40, '0')}.uf2`)?.board).toBe(
+      'Mochi'
+    )
     // Numeric board tokens that are not commit hashes survive.
     expect(parseFirmwareName('VVR_Receiver_Holyiot_22046.hex')?.board).toBe('Holyiot 22046')
     expect(parseFirmwareName('VVR_Receiver_Styria_R1.uf2')?.board).toBe('Styria R1')

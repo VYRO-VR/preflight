@@ -31,7 +31,13 @@ describe('SlimeVrClient', () => {
         JSON.stringify({
           serverVersion: '0.13.0',
           trackers: [
-            { id: 't1', name: 'LeftFoot', status: 'ok', batteryLevel: 0.8, firmwareVersion: '0.4.0' }
+            {
+              id: 't1',
+              name: 'LeftFoot',
+              status: 'ok',
+              batteryLevel: 0.8,
+              firmwareVersion: '0.4.0'
+            }
           ]
         })
       )

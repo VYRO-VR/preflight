@@ -11,6 +11,7 @@ import {
   readReceiverInfo,
   enterReceiverDfu
 } from './services/receiver-serial'
+import { ReceiverConsoleClient } from './services/receiver-console'
 import {
   getFirmwareCatalog,
   detectBootloaderDrives,
@@ -23,7 +24,7 @@ import { BulkFlashSession } from './services/bulk-flash'
 import { getDocPage, openExternal } from './services/docs'
 import { exportDiagnostics } from './services/diagnostics'
 import { getSettings, setSettings } from './services/settings'
-import type { AppSettings, FlashRequest, ReceiverDfuRequest } from '@shared/types'
+import type { AppSettings, FlashRequest, ReceiverDfuRequest, SensCalRequest } from '@shared/types'
 
 /**
  * Registers all IPC handlers. A single long-lived SlimeVrClient streams live
@@ -31,10 +32,16 @@ import type { AppSettings, FlashRequest, ReceiverDfuRequest } from '@shared/type
  * the long-lived clients so the app lifecycle can tear them down on quit — in
  * particular taking the receiver out of pairing mode if the user quits while
  * the pairing screen is still active.
+ *
+ * Pairing and the calibration console both want the receiver's serial port,
+ * which is exclusive. This is the one place that owns both clients, so it is
+ * where that exclusion is enforced: starting either refuses while the other
+ * holds the port, rather than failing later with an opaque serial error.
  */
 export function registerIpc(win: BrowserWindow): {
   slime: SlimeVrClient
   receiver: ReceiverPairingClient
+  console: ReceiverConsoleClient
   bulkFlash: BulkFlashSession
 } {
   const slime = new SlimeVrClient()
@@ -45,6 +52,11 @@ export function registerIpc(win: BrowserWindow): {
   const receiver = new ReceiverPairingClient()
   receiver.on('event', (event) => {
     if (!win.isDestroyed()) win.webContents.send('receiver:pairing-event', event)
+  })
+
+  const receiverConsole = new ReceiverConsoleClient()
+  receiverConsole.on('event', (event) => {
+    if (!win.isDestroyed()) win.webContents.send('receiver:console-event', event)
   })
 
   // The developer bulk-flash loop programs the bundled bootloader hex, shipped
@@ -68,11 +80,29 @@ export function registerIpc(win: BrowserWindow): {
   ipcMain.handle('usb:detect-receiver', () => detectReceiver())
 
   ipcMain.handle('receiver:list', () => listReceivers())
-  ipcMain.handle('receiver:start-pairing', (_e, path: string) => receiver.startPairing(path))
+  ipcMain.handle('receiver:start-pairing', (_e, path: string) => {
+    if (receiverConsole.getState().open) {
+      throw new Error('The receiver is busy with a calibration session.')
+    }
+    return receiver.startPairing(path)
+  })
   ipcMain.handle('receiver:stop-pairing', () => receiver.stopPairing())
   ipcMain.handle('receiver:get-pairing-state', () => receiver.getState())
   ipcMain.handle('receiver:read-info', (_e, path: string) => readReceiverInfo(path))
   ipcMain.handle('receiver:enter-dfu', (_e, path: string) => enterReceiverDfu(path))
+
+  ipcMain.handle('receiver:open-console', (_e, path: string) => {
+    if (receiver.getState().active) {
+      throw new Error('The receiver is in pairing mode. Leave pairing first.')
+    }
+    return receiverConsole.open(path)
+  })
+  ipcMain.handle('receiver:close-console', () => receiverConsole.close())
+  ipcMain.handle('receiver:get-console-state', () => receiverConsole.getState())
+  ipcMain.handle('receiver:list-slots', () => receiverConsole.listSlots())
+  ipcMain.handle('receiver:start-sens-cal', (_e, req: SensCalRequest) =>
+    receiverConsole.startSensCal(req)
+  )
 
   ipcMain.handle('firmware:get-catalog', () => getFirmwareCatalog())
   ipcMain.handle('firmware:detect-drives', () => detectBootloaderDrives())
@@ -98,5 +128,5 @@ export function registerIpc(win: BrowserWindow): {
   ipcMain.handle('dev:bulk-flash-start', () => bulkFlash.start())
   ipcMain.handle('dev:bulk-flash-stop', () => bulkFlash.stop())
 
-  return { slime, receiver, bulkFlash }
+  return { slime, receiver, console: receiverConsole, bulkFlash }
 }
