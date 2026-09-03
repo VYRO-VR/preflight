@@ -130,6 +130,18 @@ export const en = {
   'pair.paired.another': 'Pair another',
   'pair.done': 'Done',
   'pair.error.title': 'Something went wrong',
+  'pair.stopped.title': 'Pairing mode is off',
+  'pair.stopped.body':
+    'Your receiver is no longer accepting new trackers. Turn pairing mode back on to continue.',
+  'pair.stopped.resume': 'Turn pairing mode back on',
+
+  // Global pairing-mode indicator (top-right chrome)
+  'pairing.indicator.on': 'Pairing mode on',
+  'pairing.indicator.off': 'Pairing mode off',
+  'pairing.indicator.working': 'Working…',
+  'pairing.indicator.start': 'Turn on pairing mode',
+  'pairing.indicator.stop': 'Cancel pairing mode',
+  'pairing.indicator.dismiss': 'Dismiss',
 
   // Calibrate flow
   'calibrate.title': 'Calibrate Trackers',

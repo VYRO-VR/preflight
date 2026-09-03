@@ -33,6 +33,7 @@ const api: Api = {
     list: () => ipcRenderer.invoke('receiver:list'),
     startPairing: (path: string) => ipcRenderer.invoke('receiver:start-pairing', path),
     stopPairing: () => ipcRenderer.invoke('receiver:stop-pairing'),
+    getPairingState: () => ipcRenderer.invoke('receiver:get-pairing-state'),
     onPairingEvent: (cb: (event: PairingEvent) => void) => {
       const listener = (_e: unknown, event: PairingEvent) => cb(event)
       ipcRenderer.on('receiver:pairing-event', listener)

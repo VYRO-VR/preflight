@@ -3,6 +3,7 @@ import { useAppStore } from './store/useAppStore'
 import { STEPS } from './wizard/steps'
 import { Button } from './components/Button'
 import { LanguageSelector } from './components/LanguageSelector'
+import { PairingIndicator } from './components/PairingIndicator'
 import { HomeScreen, type HomeAction } from './home/HomeScreen'
 import { PairingFlow } from './flows/PairingFlow'
 import { CalibrateFlow } from './flows/CalibrateFlow'
@@ -34,11 +35,12 @@ export default function App() {
 
   const goHome = (): void => setView('home')
 
-  // Every view renders inside a wrapper that pins the language selector to the
-  // top-right corner of the window.
+  // Every view renders inside a wrapper that pins the pairing indicator and
+  // the language selector to the top-right corner of the window.
   const withChrome = (content: ReactNode): JSX.Element => (
     <div className="relative h-full">
-      <div className="absolute right-4 top-3 z-50">
+      <div className="absolute right-4 top-3 z-50 flex items-center gap-3">
+        <PairingIndicator />
         <LanguageSelector />
       </div>
       {content}

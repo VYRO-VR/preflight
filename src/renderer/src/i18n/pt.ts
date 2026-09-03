@@ -82,6 +82,18 @@ export const pt: Record<string, string> = {
   'pair.paired.another': 'Parear outro',
   'pair.done': 'Concluir',
   'pair.error.title': 'Algo deu errado',
+  'pair.stopped.title': 'O modo de pareamento está desligado',
+  'pair.stopped.body':
+    'Seu receptor não está mais aceitando novos rastreadores. Ative o modo de pareamento para continuar.',
+  'pair.stopped.resume': 'Ativar o modo de pareamento novamente',
+
+  // Indicador global de modo de pareamento
+  'pairing.indicator.on': 'Modo de pareamento ativo',
+  'pairing.indicator.off': 'Modo de pareamento desligado',
+  'pairing.indicator.working': 'Processando…',
+  'pairing.indicator.start': 'Ativar modo de pareamento',
+  'pairing.indicator.stop': 'Cancelar modo de pareamento',
+  'pairing.indicator.dismiss': 'Dispensar',
 
   'calibrate.title': 'Calibrar Rastreadores',
   'calibrate.intro':
