@@ -12,9 +12,7 @@ import type { DiagnosticsResult, SlimeVrLiveState } from '@shared/types'
  * Collects environment + detected versions + the current live tracker state.
  * Saved as a single JSON file via a save dialog (no archiver dependency).
  */
-export async function exportDiagnostics(
-  liveState: SlimeVrLiveState
-): Promise<DiagnosticsResult> {
+export async function exportDiagnostics(liveState: SlimeVrLiveState): Promise<DiagnosticsResult> {
   const [system, steamvr, slimevr, usb, firmware] = await Promise.all([
     getSystemInfo(),
     getSteamVrInfo(),

@@ -21,19 +21,29 @@ import {
   TrackerDataMaskT,
   DataFeedUpdate,
   BodyPart,
-  TrackerStatus
+  TrackerStatus,
+  Quat
 } from 'solarxr-protocol'
-import type { TrackerInfo } from '@shared/types'
+import { SLIMEVR_FEED_RATE_MS } from '@shared/config'
+import type { Quaternion, TrackerInfo } from '@shared/types'
 
 /**
- * Build the StartDataFeed request bundle. We ask for tracker info + status and
- * device-level data (which carries battery, RSSI, and firmware), throttled to
- * one update per `minimumTimeSinceLastMs`.
+ * Build the StartDataFeed request bundle. We ask for tracker info, status, and
+ * rotation, plus device-level data (which carries battery, RSSI, and
+ * firmware), throttled to one update per `minimumTimeSinceLastMs`.
+ *
+ * Re-sending this message replaces the feed config for the connection, which
+ * is how `SlimeVrClient.setFeedRate` switches between the idle rate and the
+ * fast rate a 3D preview or the sensitivity-calibration flow needs.
  */
-export function buildStartDataFeed(minimumTimeSinceLastMs = 200): Uint8Array {
+export function buildStartDataFeed(
+  minimumTimeSinceLastMs: number = SLIMEVR_FEED_RATE_MS.idle
+): Uint8Array {
   const trackerMask = new TrackerDataMaskT()
   trackerMask.info = true
   trackerMask.status = true
+  // Orientation drives the 3D preview and the sens-cal turn counter.
+  trackerMask.rotation = true
 
   const deviceMask = new DeviceDataMaskT(trackerMask, /* deviceData */ true)
   const config = new DataFeedConfigT(minimumTimeSinceLastMs, deviceMask)
@@ -74,6 +84,17 @@ function prettyBodyPart(part: BodyPart): string | undefined {
     .join(' ')
   // Use VYRO's terminology: thigh / ankle rather than upper/lower leg.
   return pretty.replace('Upper Leg', 'Thigh').replace('Lower Leg', 'Ankle')
+}
+
+/**
+ * Read a tracker's orientation quaternion, if the server sent one. SolarXR
+ * `Quat` is a struct, so it is only present when rotation was requested in the
+ * data mask — `rotation()` returns null otherwise.
+ */
+function readQuaternion(tracker: { rotation(): Quat | null }): Quaternion | undefined {
+  const q = tracker.rotation()
+  if (!q) return undefined
+  return { x: q.x(), y: q.y(), z: q.z(), w: q.w() }
 }
 
 /**
@@ -120,13 +141,12 @@ export function decodeDataFeed(data: Uint8Array): TrackerInfo[] | null {
         const tInfo = tracker.info()
         const trackerNum = tracker.trackerId()?.trackerNum() ?? t
         const name =
-          tInfo?.customName() ||
-          tInfo?.displayName() ||
-          `Tracker ${deviceId}:${trackerNum}`
+          tInfo?.customName() || tInfo?.displayName() || `Tracker ${deviceId}:${trackerNum}`
 
         trackers.push({
           id: `${deviceId}:${trackerNum}`,
           name,
+          rotation: readQuaternion(tracker),
           bodyPart: tInfo ? prettyBodyPart(tInfo.bodyPart()) : undefined,
           batteryLevel: batteryLevel ?? undefined,
           batteryVoltage: batteryVoltage ?? undefined,

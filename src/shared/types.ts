@@ -58,10 +58,24 @@ export interface SlimeVrInstall {
   version?: string
 }
 
+/** Orientation quaternion, in SlimeVR Server's reference frame. */
+export interface Quaternion {
+  x: number
+  y: number
+  z: number
+  w: number
+}
+
 export interface TrackerInfo {
   id: string
   name: string
   bodyPart?: string
+  /**
+   * Current orientation. Only present when the data feed was asked for
+   * rotation and the server has a reading — treat `undefined` as "unknown",
+   * not as identity.
+   */
+  rotation?: Quaternion
   /** 0..1 */
   batteryLevel?: number
   batteryVoltage?: number
@@ -70,6 +84,13 @@ export interface TrackerInfo {
   firmwareVersion?: string
   status: 'ok' | 'disconnected' | 'busy' | 'error' | 'unknown'
 }
+
+/**
+ * Body axis of a tracker, as named by the firmware's `sens auto <x|y|z>`.
+ * Z is the axis normal to the flat face (tracker lying on a desk); X and Y
+ * are the in-plane axes (tracker stood on edge).
+ */
+export type SensCalAxis = 'x' | 'y' | 'z'
 
 export interface SlimeVrLiveState {
   connected: boolean
@@ -160,6 +181,48 @@ export interface PairingState {
   active: boolean
   /** Serial path in use, or the last one used, so the UI can offer a restart. */
   path: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Receiver console (shared serial session used by the calibration flow)
+// ---------------------------------------------------------------------------
+
+/** A tracker slot stored on the receiver, as printed by its `list` command. */
+export interface ReceiverSlot {
+  /** Slot id — the `<id>` that `send <id> …` takes. */
+  slot: number
+  /** 12-hex-digit device address. */
+  address: string
+}
+
+/**
+ * A slot paired with the SlimeVR tracker it probably is. `confident` is only
+ * true when exactly one tracker matched; the user confirms either way.
+ */
+export interface TrackerSlotMatch extends ReceiverSlot {
+  /** `deviceId:trackerNum` of the matching tracker in the live feed. */
+  trackerId?: string
+  confident: boolean
+}
+
+/** Whether the shared receiver console session is open, and on which port. */
+export interface ReceiverConsoleState {
+  open: boolean
+  path: string | null
+}
+
+/** Events streamed from the shared receiver console session. */
+export type ReceiverConsoleEvent =
+  | { type: 'status'; status: 'opening' | 'open' | 'closed' }
+  | { type: 'line'; line: string }
+  | { type: 'error'; message: string }
+
+/** Request to start a gyro sensitivity calibration on one tracker. */
+export interface SensCalRequest {
+  /** Receiver slot id of the tracker. */
+  slot: number
+  axis: SensCalAxis
+  revolutions: number
 }
 
 // ---------------------------------------------------------------------------
@@ -317,6 +380,12 @@ export interface Api {
     onLiveState: (cb: (state: SlimeVrLiveState) => void) => () => void
     connect: () => Promise<void>
     disconnect: () => Promise<void>
+    /**
+     * Re-request the data feed at a different maximum rate (see
+     * SLIMEVR_FEED_RATE_MS). Views that animate orientation raise it while
+     * mounted and restore the idle rate on unmount.
+     */
+    setFeedRate: (minimumTimeSinceLastMs: number) => Promise<void>
   }
   usb: {
     detectReceiver: () => Promise<UsbDeviceMatch>
@@ -336,6 +405,23 @@ export interface Api {
     readInfo: (path: string) => Promise<ReceiverInfo>
     /** Reboot the receiver into its DFU bootloader. */
     enterDfu: (path: string) => Promise<void>
+
+    /**
+     * Open the shared receiver console session. Mutually exclusive with
+     * pairing — both hold the same serial port exclusively — so this rejects
+     * while a pairing session is running, and vice versa.
+     */
+    openConsole: (path: string) => Promise<void>
+    /** Close the console session and release the port. */
+    closeConsole: () => Promise<void>
+    /** Current console state, for UI that mounts after a session started. */
+    getConsoleState: () => Promise<ReceiverConsoleState>
+    /** Subscribe to console events. Returns an unsubscribe function. */
+    onConsoleEvent: (cb: (event: ReceiverConsoleEvent) => void) => () => void
+    /** Run `list` and return the paired tracker slots, in slot order. */
+    listSlots: () => Promise<ReceiverSlot[]>
+    /** Send `send <slot> sens auto <axis> <rev>` to start a calibration. */
+    startSensCal: (req: SensCalRequest) => Promise<void>
   }
   firmware: {
     getCatalog: () => Promise<FirmwareCatalog>

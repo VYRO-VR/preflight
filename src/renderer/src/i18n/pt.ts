@@ -41,6 +41,132 @@ export const pt: Record<string, string> = {
 
   'links.docs': 'Documentação',
   'links.firmware': 'Repositório de firmware',
+  // Calibração de sensibilidade do giroscópio
+  'home.senscal.title': 'Sensibilidade do Giroscópio',
+  'home.senscal.body':
+    'Meça a escala do giroscópio de cada rastreador para reduzir a deriva de guinada.',
+
+  'senscal.title': 'Calibração de Sensibilidade do Giroscópio',
+  'senscal.subtitle':
+    'Mede com que precisão o giroscópio do rastreador informa a rotação. Cada 0,5% de erro de escala equivale a cerca de 1,8° de deriva de guinada por volta completa do corpo, então este é o maior ganho possível contra a deriva.',
+
+  'senscal.connect.searching': 'Procurando o receptor…',
+  'senscal.connect.choose': 'Escolha o receptor a usar na calibração.',
+  'senscal.connect.use': 'Usar este',
+  'senscal.connect.none.title': 'Nenhum receptor encontrado',
+  'senscal.connect.none.body':
+    'Conecte o receptor e verifique se nenhum outro programa está usando a porta serial dele.',
+  'senscal.connect.retry': 'Procurar novamente',
+  'senscal.connect.busy':
+    'O receptor está em modo de emparelhamento. Desligue o emparelhamento primeiro — os dois não podem dividir a porta.',
+
+  'senscal.error.title': 'Algo deu errado',
+  'senscal.error.retry': 'Começar de novo',
+
+  'senscal.pick.title': 'Escolha um rastreador',
+  'senscal.pick.body':
+    'Calibre um rastreador de cada vez. Só é possível usar rastreadores conectados.',
+  'senscal.pick.none':
+    'Nenhum rastreador no feed ao vivo. Inicie o SlimeVR Server, acorde seus rastreadores e tente de novo.',
+  'senscal.pick.slots': 'Emparelhados no receptor: {count}',
+  'senscal.pick.suggested': 'Provável slot {slot}',
+  'senscal.pick.unmatched': 'Slot desconhecido — você confirma a seguir',
+  'senscal.pick.select': 'Calibrar este',
+
+  'senscal.confirm.title': 'Confirme que é o rastreador certo',
+  'senscal.confirm.body':
+    'Nada liga um slot do receptor a um rastreador no SlimeVR, então isso precisa ser confirmado à mão. Pegue o {name} e balance — a prévia abaixo deve se mexer junto.',
+  'senscal.confirm.slot': 'Enviando para o slot {slot} do receptor.',
+  'senscal.confirm.yes': 'Sim, é esse',
+  'senscal.confirm.no': 'Não, escolher outro',
+
+  'senscal.axis.progress': 'Eixo {index} de {total}',
+  'senscal.axis.z.title': 'Eixo Z — deitado na mesa',
+  'senscal.axis.z.body':
+    'Deite o rastreador numa superfície dura e nivelada, com a face voltada para cima.',
+  'senscal.axis.x.title': 'Eixo X — em pé sobre a borda longa',
+  'senscal.axis.x.body': 'Coloque o rastreador em pé sobre a borda longa, na mesma superfície.',
+  'senscal.axis.y.title': 'Eixo Y — em pé sobre a borda curta',
+  'senscal.axis.y.body': 'Coloque o rastreador em pé sobre a borda curta, na mesma superfície.',
+
+  'senscal.place.title': 'Prepare o giro',
+  'senscal.place.edge':
+    'Encoste uma borda reta do rastreador na borda de algo pesado — um livro de capa dura ou uma caixa. Comece e termine o giro com o rastreador encostado nela.',
+  'senscal.place.why':
+    'Essa borda repetível é a precisão: ±1° em 10 voltas é um piso de erro de 0,03%. Fazer no olho dá ±10°, tão grande quanto o erro que se quer remover.',
+  'senscal.place.flat':
+    'Deslize sempre encostado na superfície. Não levante nem incline — movimento fora do eixo demais faz o rastreador descartar a medição.',
+  'senscal.place.practice': 'Fazer uma volta de treino',
+  'senscal.place.start': 'Iniciar calibração',
+
+  'senscal.practice.title': 'Volta de treino',
+  'senscal.practice.body':
+    'Gire o rastreador uma volta completa no ritmo que vai usar. Dez voltas precisam caber em {budget} segundos, incluindo a parada cuidadosa.',
+  'senscal.practice.target': 'Mire em {seconds}s por volta',
+  'senscal.practice.measured': 'Sua última volta: {seconds}s',
+  'senscal.practice.good': 'Bom ritmo — termina com folga.',
+  'senscal.practice.slow': 'Lento demais. Dez voltas nesse ritmo não cabem no tempo.',
+  'senscal.practice.waiting': 'Aguardando uma volta completa…',
+  'senscal.practice.done': 'Treino concluído',
+
+  'senscal.run.turns': '{turns} / {target} voltas',
+  'senscal.run.pace': 'Ritmo alvo: {pace}',
+  'senscal.run.behind': 'Atrás do ritmo — gire um pouco mais rápido',
+  'senscal.run.timeleft': '{seconds}s restantes',
+  'senscal.run.offaxis.warn': 'Mantenha na horizontal — está inclinando',
+  'senscal.run.offaxis.reject': 'Inclinação demais. Deslize encostado na superfície.',
+  'senscal.run.cancel': 'Cancelar',
+
+  'senscal.phase.sending': 'Enviando o comando ao receptor…',
+  'senscal.phase.bias': 'Fique parado — o rastreador está medindo o desvio do giroscópio.',
+  'senscal.phase.ready': 'Gire agora — voltas constantes, encostado na superfície.',
+  'senscal.phase.spinning': 'Gravando. Continue girando.',
+  'senscal.phase.stopping': 'Pare encostado na borda e fique imóvel.',
+  'senscal.phase.complete': 'Giro aceito.',
+
+  'senscal.fail.title': 'Essa tentativa não valeu',
+  'senscal.fail.rejected': 'O receptor rejeitou o comando.',
+  'senscal.fail.noack':
+    'O receptor não respondeu. Verifique se continua conectado e fora do modo de emparelhamento.',
+  'senscal.fail.nospin': 'O rastreador nunca detectou o início do giro.',
+  'senscal.fail.timeout': 'O giro não terminou a tempo.',
+  'senscal.fail.aborted': 'Calibração cancelada.',
+  'senscal.fail.cause.offaxis':
+    'Causa mais provável: o rastreador inclinou ou foi levantado. Deslize encostado na superfície o tempo todo.',
+  'senscal.fail.cause.tooslow':
+    'Causa mais provável: o giro foi lento demais. Gire um pouco mais rápido — dez voltas precisam caber em {budget} segundos.',
+  'senscal.fail.cause.underspun':
+    'Causa mais provável: o rastreador nunca parou de forma limpa. Traga de volta à borda e segure imóvel.',
+  'senscal.fail.cause.unknown': 'Tente a medição de novo.',
+  'senscal.fail.retry': 'Tentar este eixo de novo',
+  'senscal.fail.skip': 'Pular este eixo',
+
+  'senscal.verify.title': 'Confira o resultado',
+  'senscal.verify.body':
+    'O rastreador guarda o veredito para si, então meça aqui: gire exatamente mais {turns} voltas, do mesmo jeito, e pare encostado na borda.',
+  'senscal.verify.start': 'Iniciar a conferência',
+  'senscal.verify.finish': 'Terminei as voltas',
+  'senscal.verify.turns': '{turns} voltas medidas',
+  'senscal.verify.pass': 'Aprovado — {deg}° de deriva por volta restantes.',
+  'senscal.verify.fail': 'Ainda erra {deg}° por volta.',
+  'senscal.verify.miscount':
+    'Isso deu {turns} voltas, não {target}. Provavelmente a contagem escapou — refaça a conferência.',
+  'senscal.verify.skip': 'Pular a conferência',
+
+  'senscal.result.next': 'Próximo eixo',
+  'senscal.result.rerun': 'Refazer este eixo',
+  'senscal.result.finish': 'Concluir',
+
+  'senscal.done.title': 'Calibração concluída',
+  'senscal.done.body': 'Resultados por eixo:',
+  'senscal.done.axis': 'Eixo {axis}',
+  'senscal.done.passed': 'Aprovado',
+  'senscal.done.failed': 'Não calibrado',
+  'senscal.done.skipped': 'Pulado',
+  'senscal.done.close': 'Pronto',
+
+  'senscal.preview.nowebgl': 'Prévia 3D indisponível neste monitor.',
+
   'links.discord': 'Comunidade Discord',
   'links.store': 'Loja',
 

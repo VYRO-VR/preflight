@@ -33,8 +33,8 @@ export function MountingStep() {
   return (
     <StepShell title={t('step.mounting.title')}>
       <p className="text-sm text-slate-400">
-        Slide each tracker into its tray with the USB port facing down, then secure the strap snugly.
-        Place each tracker as shown below.
+        Slide each tracker into its tray with the USB port facing down, then secure the strap
+        snugly. Place each tracker as shown below.
       </p>
       <div className="overflow-hidden rounded-lg border border-surface-border">
         <table className="w-full text-left text-sm">

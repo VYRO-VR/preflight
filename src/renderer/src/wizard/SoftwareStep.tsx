@@ -54,16 +54,10 @@ export function SoftwareStep() {
         status={live.connected ? 'pass' : 'fail'}
         value={
           live.connected
-            ? `${t('step.software.running')}${
-                live.serverVersion ? ` · ${live.serverVersion}` : ''
-              }`
+            ? `${t('step.software.running')}${live.serverVersion ? ` · ${live.serverVersion}` : ''}`
             : t('step.software.notrunning')
         }
-        detail={
-          live.connected
-            ? slimevr?.installPath
-            : t('step.software.slimevr.hint')
-        }
+        detail={live.connected ? slimevr?.installPath : t('step.software.slimevr.hint')}
         action={
           !live.connected ? (
             <Button variant="secondary" onClick={() => open(LINKS.slimevrDownload)}>

@@ -51,8 +51,14 @@ function mapRelease(r: GithubRelease): FirmwareRelease {
     // first so existing callers that grab assets[0] keep working.
     assets: (r.assets || [])
       .filter((a) => /\.(uf2|hex|zip)$/i.test(a.name))
-      .map((a) => withParsed({ name: a.name, downloadUrl: a.browser_download_url, sizeBytes: a.size }))
-      .sort((a, b) => Number(b.name.toLowerCase().endsWith('.uf2')) - Number(a.name.toLowerCase().endsWith('.uf2')))
+      .map((a) =>
+        withParsed({ name: a.name, downloadUrl: a.browser_download_url, sizeBytes: a.size })
+      )
+      .sort(
+        (a, b) =>
+          Number(b.name.toLowerCase().endsWith('.uf2')) -
+          Number(a.name.toLowerCase().endsWith('.uf2'))
+      )
   }
 }
 
@@ -104,9 +110,7 @@ export async function getFirmwareCatalog(): Promise<FirmwareCatalog> {
         error: `GitHub returned ${res.status}.`
       }
     }
-    const releases = ((await res.json()) as GithubRelease[])
-      .filter((r) => !r.draft)
-      .map(mapRelease)
+    const releases = ((await res.json()) as GithubRelease[]).filter((r) => !r.draft).map(mapRelease)
     if (releases.length === 0) {
       return {
         configured: false,
@@ -196,7 +200,10 @@ export async function downloadAsset(assetUrl: string, assetName: string): Promis
   if (!res.ok || !res.body) {
     throw new Error(`Download failed (${res.status}).`)
   }
-  await pipeline(Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]), createWriteStream(dest))
+  await pipeline(
+    Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]),
+    createWriteStream(dest)
+  )
   return dest
 }
 

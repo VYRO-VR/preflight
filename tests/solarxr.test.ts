@@ -12,13 +12,14 @@ import {
   TrackerDataT,
   TrackerInfoT,
   TrackerIdT,
+  QuatT,
   BodyPart,
   TrackerStatus
 } from 'solarxr-protocol'
 import { buildStartDataFeed, decodeDataFeed } from '../src/main/services/solarxr'
 
 /** Encode a DataFeedUpdate bundle the way a real SlimeVR Server would. */
-function encodeUpdate(): Uint8Array {
+function encodeUpdate({ rotation = true }: { rotation?: boolean } = {}): Uint8Array {
   const hwInfo = new HardwareInfoT()
   hwInfo.firmwareVersion = '0.5.0'
 
@@ -35,6 +36,8 @@ function encodeUpdate(): Uint8Array {
   tracker.trackerId = new TrackerIdT(new DeviceIdT(7), 1)
   tracker.info = trackerInfo
   tracker.status = TrackerStatus.OK
+  // 90° about Y, the sort of value the turn counter and preview consume.
+  if (rotation) tracker.rotation = new QuatT(0, Math.SQRT1_2, 0, Math.SQRT1_2)
 
   const device = new DeviceDataT()
   device.id = new DeviceIdT(7)
@@ -74,6 +77,20 @@ describe('decodeDataFeed', () => {
     expect(t.rssi).toBe(-55)
     expect(t.firmwareVersion).toBe('0.5.0')
     expect(t.batteryLevel).toBeCloseTo(0.83, 5)
+  })
+
+  it('round-trips the rotation quaternion', () => {
+    const t = decodeDataFeed(encodeUpdate())![0]
+    expect(t.rotation).toBeDefined()
+    expect(t.rotation!.x).toBeCloseTo(0, 6)
+    expect(t.rotation!.y).toBeCloseTo(Math.SQRT1_2, 6)
+    expect(t.rotation!.z).toBeCloseTo(0, 6)
+    expect(t.rotation!.w).toBeCloseTo(Math.SQRT1_2, 6)
+  })
+
+  it('leaves rotation undefined when the server sends none', () => {
+    const t = decodeDataFeed(encodeUpdate({ rotation: false }))![0]
+    expect(t.rotation).toBeUndefined()
   })
 
   it('returns null for non-SolarXR / non-update data', () => {

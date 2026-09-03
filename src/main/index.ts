@@ -83,7 +83,7 @@ function createWindow(splash?: BrowserWindow): BrowserWindow {
 app.whenReady().then(() => {
   const splash = createSplashWindow()
   const win = createWindow(splash)
-  const { slime, receiver, bulkFlash } = registerIpc(win)
+  const { slime, receiver, console: receiverConsole, bulkFlash } = registerIpc(win)
 
   if (app.isPackaged) {
     initAutoUpdater(win)
@@ -100,6 +100,9 @@ app.whenReady().then(() => {
   app.on('before-quit', () => {
     slime.disconnect()
     receiver.stopPairing()
+    // Release the calibration console's port too; unlike pairing it puts the
+    // receiver in no special mode, so closing it is all that is needed.
+    void receiverConsole.close()
     // Abort the developer bulk-flash loop so no nrfutil child outlives the app.
     void bulkFlash.stop()
   })

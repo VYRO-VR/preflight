@@ -18,7 +18,14 @@ import { StatusBadge } from '../components/StatusBadge'
 import { CheckRow } from '../components/CheckRow'
 import { FirmwarePicker } from '../components/FirmwarePicker'
 
-type ReceiverPhase = 'connecting' | 'choosing' | 'none' | 'reading' | 'ready' | 'flashing' | 'result'
+type ReceiverPhase =
+  | 'connecting'
+  | 'choosing'
+  | 'none'
+  | 'reading'
+  | 'ready'
+  | 'flashing'
+  | 'result'
 
 const DRIVE_POLL_MS = 2000
 const DRIVE_TIMEOUT_MS = 40000
@@ -518,9 +525,7 @@ export function FirmwareUpdateFlow({ onExit }: { onExit: () => void }) {
               )}
 
               {trackerResult && (
-                <p
-                  className={`text-sm ${trackerResult.ok ? 'text-emerald-300' : 'text-rose-300'}`}
-                >
+                <p className={`text-sm ${trackerResult.ok ? 'text-emerald-300' : 'text-rose-300'}`}>
                   {trackerResult.message}
                 </p>
               )}

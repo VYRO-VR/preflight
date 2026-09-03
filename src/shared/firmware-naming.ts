@@ -105,10 +105,7 @@ export function releaseCommitFor(assets: FirmwareAsset[], kind: FirmwareKind): s
  * firmware, or the receiver's `Target: foxdongle33_uf2/nrf52833` line).
  * Returns undefined when nothing matches confidently.
  */
-export function guessBoardKey(
-  text: string | undefined,
-  boards: BoardOption[]
-): string | undefined {
+export function guessBoardKey(text: string | undefined, boards: BoardOption[]): string | undefined {
   if (!text) return undefined
   const squash = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '')
 

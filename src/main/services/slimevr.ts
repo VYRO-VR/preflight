@@ -2,7 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { EventEmitter } from 'events'
 import WebSocket from 'ws'
-import { SLIMEVR_WS_URL } from '@shared/config'
+import { SLIMEVR_FEED_RATE_MS, SLIMEVR_WS_URL } from '@shared/config'
 import type { SlimeVrInstall, SlimeVrLiveState, TrackerInfo } from '@shared/types'
 import { buildStartDataFeed, decodeDataFeed } from './solarxr'
 
@@ -59,6 +59,8 @@ export class SlimeVrClient extends EventEmitter {
   private reconnectTimer: NodeJS.Timeout | null = null
   private state: SlimeVrLiveState = { connected: false, trackers: [] }
   private closedByUser = false
+  /** Feed throttle currently requested; re-applied on every (re)connect. */
+  private feedRateMs: number = SLIMEVR_FEED_RATE_MS.idle
 
   constructor(private readonly url: string = SLIMEVR_WS_URL) {
     super()
@@ -86,11 +88,7 @@ export class SlimeVrClient extends EventEmitter {
       this.update({ connected: true })
       // Subscribe to the tracker data feed (SolarXR). Harmless to non-SlimeVR
       // endpoints, which simply ignore the binary frame.
-      try {
-        this.ws?.send(buildStartDataFeed())
-      } catch {
-        // ignore — feed will be retried on the next reconnect
-      }
+      this.sendFeedConfig()
     })
     this.ws.on('message', (data) => {
       const decoded = this.decodeMessage(data as Buffer)
@@ -104,6 +102,26 @@ export class SlimeVrClient extends EventEmitter {
     this.ws.on('error', () => {
       // 'close' fires after 'error'; reconnect handled there.
     })
+  }
+
+  /**
+   * Change how often the server is allowed to push updates. A StartDataFeed
+   * replaces the connection's feed config, so this is just a re-send; the rate
+   * is remembered and re-applied after a reconnect.
+   */
+  setFeedRate(minimumTimeSinceLastMs: number): void {
+    if (minimumTimeSinceLastMs === this.feedRateMs) return
+    this.feedRateMs = minimumTimeSinceLastMs
+    this.sendFeedConfig()
+  }
+
+  private sendFeedConfig(): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) return
+    try {
+      this.ws.send(buildStartDataFeed(this.feedRateMs))
+    } catch {
+      // ignore — the config is re-sent on the next reconnect
+    }
   }
 
   private scheduleReconnect(): void {

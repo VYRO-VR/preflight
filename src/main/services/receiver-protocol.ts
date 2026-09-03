@@ -1,6 +1,11 @@
 // Pure, dependency-free parsing of the receiver's serial console. Kept separate
 // from `receiver-serial.ts` (which owns the native serialport I/O) so the
 // protocol can be unit-tested in plain Node without opening a real port.
+//
+// This file covers the pairing session and the `info` banner. Parsing of the
+// `list` command, and the slot-to-tracker matching built on it, live in
+// `@shared/receiver-slots` instead — the calibration flow in the renderer
+// needs the same matching, and the renderer cannot import from `main/`.
 
 import { RECEIVER_SERIAL, FIRMWARE_BUILD_DATE_REGEX } from '@shared/config'
 import type { PairingEvent, ReceiverInfo } from '@shared/types'
