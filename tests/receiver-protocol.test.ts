@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import {
-  PairingParser,
-  matchSlotToTracker,
-  parseLine,
-  parseSlotList
-} from '../src/main/services/receiver-protocol'
+import { PairingParser, parseLine } from '../src/main/services/receiver-protocol'
+import { matchSlotToTracker, parseSlotList } from '../src/shared/receiver-slots'
 import type { TrackerInfo } from '../src/shared/types'
 
 describe('parseLine', () => {

@@ -7,11 +7,20 @@ import { PairingIndicator } from './components/PairingIndicator'
 import { HomeScreen, type HomeAction } from './home/HomeScreen'
 import { PairingFlow } from './flows/PairingFlow'
 import { CalibrateFlow } from './flows/CalibrateFlow'
+import { SensCalFlow } from './flows/SensCalFlow'
 import { TroubleshootFlow } from './flows/TroubleshootFlow'
 import { FirmwareUpdateFlow } from './flows/FirmwareUpdateFlow'
 import { DevFlow } from './flows/DevFlow'
 
-type View = 'home' | 'wizard' | 'pair' | 'calibrate' | 'troubleshoot' | 'receiver' | 'dev'
+type View =
+  | 'home'
+  | 'wizard'
+  | 'pair'
+  | 'calibrate'
+  | 'senscal'
+  | 'troubleshoot'
+  | 'receiver'
+  | 'dev'
 
 export default function App() {
   const init = useAppStore((s) => s.init)
@@ -54,6 +63,7 @@ export default function App() {
   }
   if (view === 'pair') return withChrome(<PairingFlow onExit={goHome} />)
   if (view === 'calibrate') return withChrome(<CalibrateFlow onExit={goHome} />)
+  if (view === 'senscal') return withChrome(<SensCalFlow onExit={goHome} />)
   if (view === 'troubleshoot') return withChrome(<TroubleshootFlow onExit={goHome} />)
   if (view === 'receiver') return withChrome(<FirmwareUpdateFlow onExit={goHome} />)
   if (view === 'dev') return withChrome(<DevFlow onExit={goHome} />)

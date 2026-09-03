@@ -1,7 +1,7 @@
 import { useAppStore } from '../store/useAppStore'
 import { ActionCard } from '../components/ActionCard'
 
-export type HomeAction = 'pair' | 'calibrate' | 'troubleshoot' | 'receiver' | 'wizard'
+export type HomeAction = 'pair' | 'calibrate' | 'senscal' | 'troubleshoot' | 'receiver' | 'wizard'
 
 export function HomeScreen({
   onSelect,
@@ -46,6 +46,13 @@ export function HomeScreen({
             title={t('home.calibrate.title')}
             body={t('home.calibrate.body')}
             onClick={() => onSelect('calibrate')}
+          />
+          <ActionCard
+            variant="compact"
+            icon="🌀"
+            title={t('home.senscal.title')}
+            body={t('home.senscal.body')}
+            onClick={() => onSelect('senscal')}
           />
           <ActionCard
             variant="compact"

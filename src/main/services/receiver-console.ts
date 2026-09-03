@@ -7,7 +7,7 @@ import type {
   ReceiverSlot,
   SensCalRequest
 } from '@shared/types'
-import { parseSlotList } from './receiver-protocol'
+import { parseSlotList } from '@shared/receiver-slots'
 
 /** How long `list` output is collected before it is parsed. */
 const LIST_COLLECT_MS = 800

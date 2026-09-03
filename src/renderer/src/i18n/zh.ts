@@ -206,6 +206,123 @@ export const zh: Record<string, string> = {
   'fwupdate.progress.drive': '正在等待接收器显示为磁盘…',
   'fwupdate.progress.nrfutil': '正在通过 USB 更新 — 等待接收器出现，最长可能需要一分钟…',
 
+  // 陀螺仪灵敏度校准
+  'home.senscal.title': '陀螺仪灵敏度',
+  'home.senscal.body': '测量每个追踪器的陀螺仪刻度，减少偏航漂移。',
+
+  'senscal.title': '陀螺仪灵敏度校准',
+  'senscal.subtitle':
+    '测量追踪器的陀螺仪报告旋转的准确程度。每 0.5% 的刻度误差，身体每转一整圈就会带来约 1.8° 的偏航漂移——这是对抗漂移最有效的一步。',
+
+  'senscal.connect.searching': '正在查找接收器…',
+  'senscal.connect.choose': '选择用于校准的接收器。',
+  'senscal.connect.use': '使用这个',
+  'senscal.connect.none.title': '未找到接收器',
+  'senscal.connect.none.body': '请插好接收器，并确认没有其他程序占用它的串口。',
+  'senscal.connect.retry': '重新搜索',
+  'senscal.connect.busy': '接收器正处于配对模式。请先关闭配对——两者无法共用串口。',
+
+  'senscal.error.title': '出现问题',
+  'senscal.error.retry': '重新开始',
+
+  'senscal.pick.title': '选择追踪器',
+  'senscal.pick.body': '一次校准一个追踪器。只能选择已连接的追踪器。',
+  'senscal.pick.none': '实时数据中没有追踪器。请启动 SlimeVR Server 并唤醒追踪器后重试。',
+  'senscal.pick.slots': '接收器已配对：{count}',
+  'senscal.pick.suggested': '可能是槽位 {slot}',
+  'senscal.pick.unmatched': '槽位未知——下一步请确认',
+  'senscal.pick.select': '校准这一个',
+
+  'senscal.confirm.title': '确认追踪器是否正确',
+  'senscal.confirm.body':
+    '接收器槽位与 SlimeVR 中的追踪器之间没有任何关联，因此必须手动确认。拿起 {name} 晃一晃——下方的预览应随之移动。',
+  'senscal.confirm.slot': '将发送到接收器槽位 {slot}。',
+  'senscal.confirm.yes': '就是它',
+  'senscal.confirm.no': '不是，重新选择',
+
+  'senscal.axis.progress': '第 {index} 个轴，共 {total} 个',
+  'senscal.axis.z.title': 'Z 轴——平放在桌面',
+  'senscal.axis.z.body': '将追踪器平放在坚硬水平的表面上，正面朝上。',
+  'senscal.axis.x.title': 'X 轴——立在长边上',
+  'senscal.axis.x.body': '把追踪器立起来，用长边接触同一表面。',
+  'senscal.axis.y.title': 'Y 轴——立在短边上',
+  'senscal.axis.y.body': '把追踪器立起来，用短边接触同一表面。',
+
+  'senscal.place.title': '准备旋转',
+  'senscal.place.edge':
+    '让追踪器的一条平直边紧贴一个较重物体的边缘——精装书或盒子都可以。开始和结束旋转时都要贴着它。',
+  'senscal.place.why':
+    '这个可重复的边缘决定了精度：10 圈内 ±1° 相当于 0.03% 的误差下限。仅凭目测起止会有 ±10°，与要消除的误差同一量级。',
+  'senscal.place.flat':
+    '全程贴着表面平滑地转动。不要抬起或倾斜——离轴运动过多会让追踪器直接作废这次测量。',
+  'senscal.place.practice': '先练习一圈',
+  'senscal.place.start': '开始校准',
+
+  'senscal.practice.title': '练习旋转',
+  'senscal.practice.body':
+    '按你打算使用的速度转一整圈。10 圈必须在 {budget} 秒内完成，还要包含小心的停止动作。',
+  'senscal.practice.target': '目标：每圈 {seconds} 秒',
+  'senscal.practice.measured': '上一圈用时：{seconds} 秒',
+  'senscal.practice.good': '速度不错——这样能留出富余时间。',
+  'senscal.practice.slow': '太慢了。按这个速度 10 圈无法在时限内完成。',
+  'senscal.practice.waiting': '正在等待完整的一圈…',
+  'senscal.practice.done': '练习完成',
+
+  'senscal.run.turns': '{turns} / {target} 圈',
+  'senscal.run.pace': '进度目标：{pace}',
+  'senscal.run.behind': '落后于进度——请稍微转快一点',
+  'senscal.run.timeleft': '剩余 {seconds} 秒',
+  'senscal.run.offaxis.warn': '保持水平——它正在倾斜',
+  'senscal.run.offaxis.reject': '倾斜过大。请贴着表面平推。',
+  'senscal.run.cancel': '取消',
+
+  'senscal.phase.sending': '正在向接收器发送指令…',
+  'senscal.phase.bias': '请保持静止——追踪器正在测量陀螺仪零偏。',
+  'senscal.phase.ready': '现在开始旋转——匀速转动，贴着表面。',
+  'senscal.phase.spinning': '正在记录。继续转动。',
+  'senscal.phase.stopping': '靠回边缘停下并保持静止。',
+  'senscal.phase.complete': '旋转已被接受。',
+
+  'senscal.fail.title': '这次没有成功',
+  'senscal.fail.rejected': '接收器拒绝了该指令。',
+  'senscal.fail.noack': '接收器没有响应。请检查它是否仍然插好，且不在配对模式。',
+  'senscal.fail.nospin': '追踪器没有检测到旋转开始。',
+  'senscal.fail.timeout': '旋转没有在时限内完成。',
+  'senscal.fail.aborted': '校准已取消。',
+  'senscal.fail.cause.offaxis': '最可能的原因：追踪器倾斜或被抬起。请全程贴着表面平推。',
+  'senscal.fail.cause.tooslow':
+    '最可能的原因：转得太慢。下次快一点——10 圈必须在 {budget} 秒内完成。',
+  'senscal.fail.cause.underspun': '最可能的原因：追踪器没有干净地停下。把它靠回边缘并保持静止。',
+  'senscal.fail.cause.unknown': '请再试一次。',
+  'senscal.fail.retry': '重试这个轴',
+  'senscal.fail.skip': '跳过这个轴',
+
+  'senscal.verify.title': '检查结果',
+  'senscal.verify.body':
+    '追踪器不会把结果告诉外部，所以在这里实测：用同样的方式再转 {turns} 圈，然后靠回边缘停下。',
+  'senscal.verify.start': '开始检查',
+  'senscal.verify.finish': '我已经转完了',
+  'senscal.verify.turns': '已测得 {turns} 圈',
+  'senscal.verify.pass': '通过——每圈残余漂移 {deg}°。',
+  'senscal.verify.fail': '仍有每圈 {deg}° 的偏差。',
+  'senscal.verify.miscount':
+    '读数为 {turns} 圈，而不是 {target} 圈。很可能是圈数记错了——请重新检查。',
+  'senscal.verify.skip': '跳过检查',
+
+  'senscal.result.next': '下一个轴',
+  'senscal.result.rerun': '重做这个轴',
+  'senscal.result.finish': '完成',
+
+  'senscal.done.title': '校准完成',
+  'senscal.done.body': '各轴结果：',
+  'senscal.done.axis': '{axis} 轴',
+  'senscal.done.passed': '通过',
+  'senscal.done.failed': '未校准',
+  'senscal.done.skipped': '已跳过',
+  'senscal.done.close': '完成',
+
+  'senscal.preview.nowebgl': '此显示环境无法使用 3D 预览。',
+
   'links.discord': 'VYRO VR Discord',
   'links.slimevrDiscord': 'SlimeVR Discord',
 
