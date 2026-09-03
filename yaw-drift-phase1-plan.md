@@ -139,6 +139,13 @@ pass/fail with a named likely cause on failure → offer re-run.
 
 Then firmware/receiver Task F3, and replace the timeout inference with the real state.
 
+**Status:** all five slices and F3 have landed. The tracker streams a sens-cal report
+(stream type `0x40` — *not* type 6, which SlimeVR Server parses as button/sleep time
+and turns into tap resets), the receiver echoes it on its console, and
+`@shared/sens-cal` uses it for phase and verdict with the timeout inference kept as
+the fallback for firmware that does not report. See `receiver-yaw-drift-contract.md`
+in the firmware repo for the wire format and the console line.
+
 ## Open questions
 
 - Does the quaternion feed actually stay live through a sens-cal run? (predicted yes — finding 5)

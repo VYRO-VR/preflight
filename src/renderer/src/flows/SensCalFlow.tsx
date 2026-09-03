@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SENS_CAL } from '@shared/config'
+import { SENS_CAL, SENS_CAL_RESULT } from '@shared/config'
 import { matchSlotToTracker } from '@shared/receiver-slots'
 import {
+  awaitingVerdict,
   emptyAccumulator,
+  firmwareScale,
   hasEnoughAngle,
   initialSensCalState,
   isUrgent,
   offAxisLevel,
   paceTurns,
+  prepareSensCal,
   pushRotation,
   reduceSensCal,
   secondsLeft,
@@ -32,11 +35,13 @@ import type { TranslationKey } from '../i18n'
  *
  * The tracker firmware can measure its own gyro scale factor (`sens auto`),
  * but only if the user spins it a known number of turns, about one axis, fast
- * enough, without tilting it — and the firmware reports nothing back over the
- * radio. So this flow does three jobs the firmware cannot: it coaches the
- * physical setup, it makes the pace achievable instead of merely reporting
- * failure afterwards, and it measures the result itself with a verification
- * spin. See `@shared/sens-cal` for the phase machine and the maths.
+ * enough, without tilting it. So this flow does three jobs the firmware
+ * cannot: it coaches the physical setup, it makes the pace achievable instead
+ * of merely reporting failure afterwards, and it measures the result itself
+ * with a verification spin. Firmware that reports its progress (echoed by the
+ * receiver on the console) drives the on-screen phase and verdict directly;
+ * older firmware is followed by inference. See `@shared/sens-cal` for the
+ * phase machine and the maths.
  */
 
 type Stage =
@@ -211,7 +216,7 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
 
   const startRun = async (): Promise<void> => {
     if (slot === null) return
-    setCal(initialSensCalState(axis, SENS_CAL.revolutions))
+    setCal((s) => prepareSensCal(s, axis, SENS_CAL.revolutions))
     setStage('run')
     try {
       await window.api.receiver.startSensCal({ slot, axis, revolutions: SENS_CAL.revolutions })
@@ -220,6 +225,7 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
           type: 'sent',
           axis,
           revolutions: SENS_CAL.revolutions,
+          slot,
           atMs: performance.now()
         })
       )
@@ -461,9 +467,16 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
 
       {stage === 'failed' && (
         <Notice tone="error" title={t('senscal.fail.title')}>
-          <p>{t(`senscal.fail.${failureKey(cal)}` as TranslationKey)}</p>
+          <p>
+            {t(`senscal.fail.${failureKey(cal)}` as TranslationKey, {
+              code: cal.result ?? 0,
+              turns: ((cal.report?.progressDeg ?? 0) / 360).toFixed(1),
+              target: cal.revolutions,
+              scale: (firmwareScale(cal) ?? 0).toFixed(4)
+            })}
+          </p>
           <p className="mt-2 text-slate-300">
-            {t(`senscal.fail.cause.${cal.cause ?? 'unknown'}` as TranslationKey, {
+            {t(`senscal.fail.cause.${causeKey(cal)}` as TranslationKey, {
               budget: Math.round(SENS_CAL.spinTimeoutMs / 1000)
             })}
           </p>
@@ -478,6 +491,7 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
 
       {stage === 'verify' && (
         <div className="space-y-3">
+          <FirmwareVerdict state={cal} />
           <Notice tone="info" title={t('senscal.verify.title')}>
             <p>{t('senscal.verify.body', { turns: SENS_CAL.revolutions })}</p>
           </Notice>
@@ -509,6 +523,7 @@ export function SensCalFlow({ onExit }: { onExit: () => void }) {
 
       {stage === 'axis-result' && (
         <div className="space-y-3">
+          <FirmwareVerdict state={cal} />
           {verification && <VerificationNotice result={verification} />}
           <div className="flex gap-3">
             <Button onClick={nextAxis}>
@@ -629,6 +644,32 @@ function RunPanel({
   )
 }
 
+/**
+ * What the tracker itself said about the run, when it said anything. The
+ * saved scale is shown because it is the one number a user can compare
+ * between runs; the verification spin below it says whether it is *right*.
+ */
+function FirmwareVerdict({ state }: { state: SensCalState }) {
+  const t = useAppStore((s) => s.t)
+  const scale = firmwareScale(state)
+  if (state.result === SENS_CAL_RESULT.ok && scale !== undefined) {
+    return (
+      <Notice tone="success" title={t('senscal.verify.accepted.title')}>
+        <p>
+          {t('senscal.verify.accepted', {
+            scale: scale.toFixed(4),
+            pct: ((scale - 1) * 100).toFixed(2)
+          })}
+        </p>
+      </Notice>
+    )
+  }
+  if (state.report === undefined) {
+    return <p className="text-xs text-slate-500">{t('senscal.verify.inferred')}</p>
+  }
+  return null
+}
+
 function VerificationNotice({ result }: { result: VerificationResult }) {
   const t = useAppStore((s) => s.t)
   if (!result.withinClamp) {
@@ -719,12 +760,27 @@ function phaseSlug(state: SensCalState): string {
     case 'spinning':
       return 'spinning'
     case 'stopping':
-      return 'stopping'
+      return awaitingVerdict(state) ? 'verdict' : 'stopping'
     case 'complete':
       return 'complete'
     default:
       return 'sending'
   }
+}
+
+/** Firmware result code → translation-key suffix under `senscal.fail.fw.`. */
+const RESULT_SLUGS: Record<number, string> = {
+  [SENS_CAL_RESULT.invalidParams]: 'invalidparams',
+  [SENS_CAL_RESULT.notStill]: 'notstill',
+  [SENS_CAL_RESULT.gyroTimeout]: 'gyrotimeout',
+  [SENS_CAL_RESULT.noBiasSamples]: 'nobiassamples',
+  [SENS_CAL_RESULT.noSpin]: 'nospin',
+  [SENS_CAL_RESULT.spinTimeout]: 'spintimeout',
+  [SENS_CAL_RESULT.angleTooSmall]: 'angletoosmall',
+  [SENS_CAL_RESULT.invalidScale]: 'invalidscale',
+  [SENS_CAL_RESULT.offAxis]: 'offaxis',
+  [SENS_CAL_RESULT.scaleRange]: 'scalerange',
+  [SENS_CAL_RESULT.noRetained]: 'noretained'
 }
 
 /** Failure → translation-key suffix. */
@@ -738,9 +794,16 @@ function failureKey(state: SensCalState): string {
       return 'nospin'
     case 'aborted':
       return 'aborted'
+    case 'firmware':
+      return `fw.${RESULT_SLUGS[state.result ?? -1] ?? 'unknown'}`
     default:
       return 'timeout'
   }
+}
+
+/** Cause → translation-key suffix (the keys have no hyphens). */
+function causeKey(state: SensCalState): string {
+  return (state.cause ?? 'unknown').replace('-', '')
 }
 
 function outcomeKey(outcome: AxisOutcome): string {

@@ -122,6 +122,7 @@ export const pt: Record<string, string> = {
   'senscal.phase.ready': 'Gire agora — voltas constantes, encostado na superfície.',
   'senscal.phase.spinning': 'Gravando. Continue girando.',
   'senscal.phase.stopping': 'Pare encostado na borda e fique imóvel.',
+  'senscal.phase.verdict': 'Fique imóvel — aguardando o rastreador confirmar a medição…',
   'senscal.phase.complete': 'Giro aceito.',
 
   'senscal.fail.title': 'Essa tentativa não valeu',
@@ -131,19 +132,42 @@ export const pt: Record<string, string> = {
   'senscal.fail.nospin': 'O rastreador nunca detectou o início do giro.',
   'senscal.fail.timeout': 'O giro não terminou a tempo.',
   'senscal.fail.aborted': 'Calibração cancelada.',
+  'senscal.fail.fw.invalidparams': 'O rastreador rejeitou o pedido como inválido.',
+  'senscal.fail.fw.notstill': 'O rastreador ainda estava em movimento quando a medição começou.',
+  'senscal.fail.fw.gyrotimeout':
+    'O rastreador parou de receber amostras do giroscópio no meio da medição.',
+  'senscal.fail.fw.nobiassamples': 'O rastreador não conseguiu medir o desvio do giroscópio.',
+  'senscal.fail.fw.nospin': 'O rastreador nunca detectou o início do giro.',
+  'senscal.fail.fw.spintimeout': 'O rastreador desistiu de esperar o giro terminar.',
+  'senscal.fail.fw.angletoosmall': 'O rastreador mediu quase nenhuma rotação.',
+  'senscal.fail.fw.invalidscale': 'O rastreador calculou uma escala inválida. Nada foi salvo.',
+  'senscal.fail.fw.offaxis':
+    'O rastreador rejeitou a medição: movimento fora do eixo demais. Nada foi salvo.',
+  'senscal.fail.fw.scalerange':
+    'O rastreador mediu {turns} voltas em vez de {target} — uma escala de {scale} está fora do que ele aceita. Nada foi salvo.',
+  'senscal.fail.fw.noretained': 'O rastreador não conseguiu salvar o resultado.',
+  'senscal.fail.fw.unknown': 'O rastreador rejeitou a medição (código {code}).',
   'senscal.fail.cause.offaxis':
     'Causa mais provável: o rastreador inclinou ou foi levantado. Deslize encostado na superfície o tempo todo.',
   'senscal.fail.cause.tooslow':
     'Causa mais provável: o giro foi lento demais. Gire um pouco mais rápido — dez voltas precisam caber em {budget} segundos.',
   'senscal.fail.cause.underspun':
     'Causa mais provável: o rastreador nunca parou de forma limpa. Traga de volta à borda e segure imóvel.',
+  'senscal.fail.cause.miscount':
+    'Causa mais provável: a contagem de voltas errou. Conte exatamente dez voltas completas, começando e parando na borda.',
+  'senscal.fail.cause.notstill':
+    'Causa mais provável: o rastreador foi mexido antes de pedir o giro. Encoste na borda e não toque até o aviso de girar.',
   'senscal.fail.cause.unknown': 'Tente a medição de novo.',
   'senscal.fail.retry': 'Tentar este eixo de novo',
   'senscal.fail.skip': 'Pular este eixo',
 
   'senscal.verify.title': 'Confira o resultado',
   'senscal.verify.body':
-    'O rastreador guarda o veredito para si, então meça aqui: gire exatamente mais {turns} voltas, do mesmo jeito, e pare encostado na borda.',
+    'Agora meça o resultado: gire exatamente mais {turns} voltas, do mesmo jeito, e pare encostado na borda.',
+  'senscal.verify.accepted.title': 'O rastreador aceitou a medição',
+  'senscal.verify.accepted': 'Ele salvou uma escala de giroscópio de {scale} — correção de {pct}%.',
+  'senscal.verify.inferred':
+    'O firmware deste rastreador não informa o veredito, então esta conferência é o único sinal de que a medição valeu.',
   'senscal.verify.start': 'Iniciar a conferência',
   'senscal.verify.finish': 'Terminei as voltas',
   'senscal.verify.turns': '{turns} voltas medidas',

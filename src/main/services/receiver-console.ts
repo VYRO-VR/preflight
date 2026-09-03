@@ -119,8 +119,8 @@ export class ReceiverConsoleClient extends EventEmitter {
   /**
    * Start a gyro sensitivity calibration on one tracker. Resolving means the
    * command reached the receiver, not that the run succeeded — the receiver's
-   * ack arrives as a console line, and the tracker's own verdict never leaves
-   * the tracker at all (see `@shared/sens-cal`).
+   * ack, and then the tracker's own progress and verdict, arrive as console
+   * lines that `@shared/sens-cal` folds into its phase machine.
    */
   async startSensCal(req: SensCalRequest): Promise<void> {
     await this.write(RECEIVER_CONSOLE.sensAutoCmd(req.slot, req.axis, req.revolutions))

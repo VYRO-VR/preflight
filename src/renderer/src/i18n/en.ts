@@ -295,6 +295,7 @@ export const en = {
   'senscal.phase.ready': 'Spin now — steady turns, flat on the surface.',
   'senscal.phase.spinning': 'Recording. Keep turning.',
   'senscal.phase.stopping': 'Stop against the edge and hold still.',
+  'senscal.phase.verdict': 'Hold still — waiting for the tracker to confirm the run…',
   'senscal.phase.complete': 'Spin accepted.',
 
   'senscal.fail.title': 'That run didn’t take',
@@ -304,19 +305,41 @@ export const en = {
   'senscal.fail.nospin': 'The tracker never saw a spin start.',
   'senscal.fail.timeout': 'The spin didn’t finish in time.',
   'senscal.fail.aborted': 'Calibration cancelled.',
+  'senscal.fail.fw.invalidparams': 'The tracker rejected the request as invalid.',
+  'senscal.fail.fw.notstill': 'The tracker was still moving when the run started.',
+  'senscal.fail.fw.gyrotimeout': 'The tracker stopped getting gyro samples mid-run.',
+  'senscal.fail.fw.nobiassamples': 'The tracker could not measure its gyro bias.',
+  'senscal.fail.fw.nospin': 'The tracker never saw a spin start.',
+  'senscal.fail.fw.spintimeout': 'The tracker gave up waiting for the spin to finish.',
+  'senscal.fail.fw.angletoosmall': 'The tracker measured almost no rotation.',
+  'senscal.fail.fw.invalidscale': 'The tracker computed an invalid scale. Nothing saved.',
+  'senscal.fail.fw.offaxis':
+    'The tracker rejected the run: too much off-axis motion. Nothing saved.',
+  'senscal.fail.fw.scalerange':
+    'The tracker measured {turns} turns for {target} — a scale of {scale} is outside what it will accept. Nothing saved.',
+  'senscal.fail.fw.noretained': 'The tracker could not save the result.',
+  'senscal.fail.fw.unknown': 'The tracker rejected the run (code {code}).',
   'senscal.fail.cause.offaxis':
     'Most likely cause: the tracker tilted or lifted. Slide it flat against the surface the whole way round.',
   'senscal.fail.cause.tooslow':
     'Most likely cause: the spin was too slow. Spin a little faster next time — ten turns have to fit in {budget} seconds.',
   'senscal.fail.cause.underspun':
     'Most likely cause: the tracker never came to a clean stop. Bring it back to the edge and hold it still.',
+  'senscal.fail.cause.miscount':
+    'Most likely cause: the turn count was off. Count exactly ten full turns, starting and stopping at the edge.',
+  'senscal.fail.cause.notstill':
+    'Most likely cause: the tracker was nudged before it asked for the spin. Set it against the edge and keep your hands off until the spin prompt.',
   'senscal.fail.cause.unknown': 'Try the run again.',
   'senscal.fail.retry': 'Try this axis again',
   'senscal.fail.skip': 'Skip this axis',
 
   'senscal.verify.title': 'Check the result',
   'senscal.verify.body':
-    'The tracker keeps its verdict to itself, so measure it here: spin exactly {turns} more turns, the same way, then stop against the edge.',
+    'Now measure the result: spin exactly {turns} more turns, the same way, then stop against the edge.',
+  'senscal.verify.accepted.title': 'The tracker accepted the run',
+  'senscal.verify.accepted': 'It saved a gyro scale of {scale} — a {pct}% correction.',
+  'senscal.verify.inferred':
+    'This tracker’s firmware does not report a verdict, so this check is the only sign the run took.',
   'senscal.verify.start': 'Start the check',
   'senscal.verify.finish': 'I’ve finished the turns',
   'senscal.verify.turns': '{turns} turns measured',
