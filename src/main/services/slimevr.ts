@@ -133,7 +133,9 @@ export class SlimeVrClient extends EventEmitter {
   }
 
   private update(patch: Partial<SlimeVrLiveState>): void {
-    this.state = { ...this.state, ...patch }
+    // Stamped here, on arrival, so the renderer can measure the feed's own
+    // cadence rather than its own scheduling (see `SlimeVrLiveState.atMs`).
+    this.state = { ...this.state, ...patch, atMs: performance.now() }
     this.emit('state', this.state)
   }
 

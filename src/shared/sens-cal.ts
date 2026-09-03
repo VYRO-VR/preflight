@@ -34,29 +34,54 @@ import { RAD_TO_DEG, conjugate, multiply } from './quaternion'
 const RATE_SMOOTHING = 0.3
 
 /**
- * Largest sample gap still integrated into the turn count.
+ * Sample gap beyond which the feed is taken to have really dropped out.
  *
- * This bound is what keeps the count honest, and it is a statement about spin
- * rate: two orientations 180° apart are ambiguous in direction, and worse, a
- * step of 180°+x is indistinguishable from one of 180°-x the other way. No
- * inspection of the quaternions can separate those, so the only defence is to
- * sample often enough that a real spin cannot cover 180° between samples.
- *
- * 180° in 250 ms is 720 °/s — two turns a second, far beyond anything a hand
- * sliding a tracker on a desk produces. The live feed runs at 30 ms; even the
- * idle 200 ms rate stays inside this, so the counter still works if the rate
- * change is lost.
+ * Two orientations 180° apart are ambiguous in direction, and a step of
+ * 180°+x is indistinguishable from one of 180°-x the other way, so a gap is
+ * dangerous when the tracker could have covered more than half a turn in it
+ * *unpredictably*. Short of this bound the gap is bridged instead: the spin
+ * rate just before it predicts how far the tracker went, and the step is
+ * unwrapped to the whole-turn candidate nearest that prediction. A hand spin
+ * is steady over a second, so the prediction is good to well under the ±180°
+ * the unwrap tolerates. That turns a garbage-collection pause, a SlimeVR
+ * Server stall, or a late IPC batch into a bridged step rather than a lost
+ * spin.
  */
-const MAX_STEP_MS = 250
+const MAX_GAP_MS = 1500
 
 /**
- * Largest single-step rotation still integrated. Secondary to `MAX_STEP_MS`:
- * it narrows the ambiguous band rather than removing it, since a genuine
- * 150°-plus step and an aliased one look alike. Within the time bound above,
- * a reading this large is not a plausible hand spin, so it is treated as
- * dropped samples.
+ * Predicted rotation across a gap beyond which unwrapping is guesswork: two
+ * full turns. At a hand pace this is only reached by a gap near `MAX_GAP_MS`
+ * during a fast spin.
+ */
+const MAX_GAP_DEG = 720
+
+/**
+ * Largest gap trusted before the rate estimate is primed. The first few
+ * samples have no history to predict from, so they fall back to the bound
+ * under which even the fastest hand spin cannot cover half a turn: 180° in
+ * 250 ms is 720 °/s, two turns a second.
+ */
+const MAX_UNPRIMED_GAP_MS = 250
+
+/** Samples integrated before the rate estimate is trusted to predict a gap. */
+const RATE_PRIME_SAMPLES = 3
+
+/**
+ * Largest disagreement between a step and the prediction still integrated.
+ * The unwrap candidates are 360° apart, so the best one is always within
+ * 180° of the prediction; a residual past this is the ambiguous band — a
+ * reset jump in SlimeVR, or an aliased step — and is treated as dropped.
  */
 const MAX_STEP_DEG = 150
+
+/**
+ * Motion across a stall that still reads as "nothing happened". A tracker at
+ * rest that the feed lost for a while has not lost any turns, so a stall from
+ * rest is not a gap unless the tracker has visibly moved by the time the feed
+ * returns.
+ */
+const REST_STEP_DEG = 90
 
 /**
  * How long to wait for the receiver to echo its `Sens set … request sent …`
@@ -121,6 +146,8 @@ export interface TurnAccumulator {
   offAxisDeg: number
   /** Smoothed magnitude of the rate about world up, in deg/s. */
   rateDps: number
+  /** Smoothed signed rate about world up, in deg/s — the spin direction. */
+  signedRateDps: number
   /** Smoothed magnitude of the rate about every axis, in deg/s. */
   motionDps: number
   /**
@@ -140,6 +167,7 @@ export function emptyAccumulator(): TurnAccumulator {
     totalDeg: 0,
     offAxisDeg: 0,
     rateDps: 0,
+    signedRateDps: 0,
     motionDps: 0,
     gaps: 0,
     samples: 0
@@ -147,10 +175,12 @@ export function emptyAccumulator(): TurnAccumulator {
 }
 
 /**
- * Fold one orientation sample in. The first sample only seeds the reference;
- * samples the accumulator cannot trust are used to re-seed rather than
+ * Fold one orientation sample in. The first sample only seeds the reference.
+ * A step across a short gap is bridged by unwrapping it about the predicted
+ * rotation; a step the accumulator cannot trust re-seeds instead of being
  * integrated, so neither a stalled feed nor an aliased step can quietly
- * change the turn count — they are counted in `gaps` instead.
+ * change the turn count — it is counted in `gaps` instead, unless the tracker
+ * was at rest and stayed there, in which case nothing was lost.
  */
 export function pushRotation(
   acc: TurnAccumulator,
@@ -160,32 +190,64 @@ export function pushRotation(
   if (!acc.lastQuat || acc.lastAtMs === null) {
     return { ...acc, lastQuat: quat, lastAtMs: atMs }
   }
-  const reseed = {
+  const dtMs = atMs - acc.lastAtMs
+  // The same instant again is a repeated notification, not a new sample.
+  if (dtMs <= 0) return acc
+
+  const reseed: TurnAccumulator = {
     ...acc,
     lastQuat: quat,
     lastAtMs: atMs,
     rateDps: 0,
-    motionDps: 0,
-    gaps: acc.gaps + 1
+    signedRateDps: 0,
+    motionDps: 0
   }
-
-  const dtMs = atMs - acc.lastAtMs
-  if (dtMs <= 0 || dtMs > MAX_STEP_MS) return reseed
+  const dropped: TurnAccumulator = { ...reseed, gaps: acc.gaps + 1 }
 
   const delta = rotationDelta(acc.lastQuat, quat, dtMs)
-  // Belt and braces: within the time bound a step this large is not real
-  // motion, so integrating it would more likely subtract turns than add them.
-  if (delta.totalDeg > MAX_STEP_DEG) return reseed
-
   const dtS = dtMs / 1000
-  const instantDps = Math.abs(delta.aboutUpDeg) / dtS
-  const instantMotionDps = delta.totalDeg / dtS
+  const primed = acc.samples >= RATE_PRIME_SAMPLES
+  const expectedDeg = primed ? acc.signedRateDps * dtS : 0
+
+  const tooLong =
+    dtMs > MAX_GAP_MS ||
+    Math.abs(expectedDeg) > MAX_GAP_DEG ||
+    (!primed && dtMs > MAX_UNPRIMED_GAP_MS)
+  if (tooLong) {
+    // A stall. Harmless if the tracker was at rest and is still where it was;
+    // otherwise turns may have gone by unseen.
+    const wasStill = acc.motionDps < SENS_CAL.stillRateDps
+    return wasStill && delta.totalDeg <= REST_STEP_DEG ? reseed : dropped
+  }
+
+  // Unwrap the step to the whole-turn candidate nearest the prediction. At a
+  // normal cadence the prediction and the shortest arc agree; across a gap
+  // this is what recovers a step that crossed the half-turn line.
+  let aboutUpDeg = delta.aboutUpDeg
+  let residual = Math.abs(aboutUpDeg - expectedDeg)
+  for (const k of [-2, -1, 1, 2]) {
+    const candidate = delta.aboutUpDeg + 360 * k
+    const err = Math.abs(candidate - expectedDeg)
+    if (err < residual) {
+      aboutUpDeg = candidate
+      residual = err
+    }
+  }
+  // A step the prediction cannot explain is not motion the feed saw: a reset
+  // jump, or an aliased sample. Integrating it would more likely subtract
+  // turns than add them.
+  if (residual > MAX_STEP_DEG) return dropped
+
+  const instantSignedDps = aboutUpDeg / dtS
+  const instantDps = Math.abs(instantSignedDps)
+  const instantMotionDps = Math.max(delta.totalDeg, Math.abs(aboutUpDeg)) / dtS
   return {
     lastQuat: quat,
     lastAtMs: atMs,
-    totalDeg: acc.totalDeg + delta.aboutUpDeg,
+    totalDeg: acc.totalDeg + aboutUpDeg,
     offAxisDeg: acc.offAxisDeg + delta.offAxisDeg,
     rateDps: acc.rateDps + (instantDps - acc.rateDps) * RATE_SMOOTHING,
+    signedRateDps: acc.signedRateDps + (instantSignedDps - acc.signedRateDps) * RATE_SMOOTHING,
     motionDps: acc.motionDps + (instantMotionDps - acc.motionDps) * RATE_SMOOTHING,
     gaps: acc.gaps,
     samples: acc.samples + 1
