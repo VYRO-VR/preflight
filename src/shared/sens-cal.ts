@@ -4,12 +4,14 @@
 // accumulator over a quaternion stream plus a fold that mirrors the firmware's
 // `cal_sens.c` phase machine, so both can be unit-tested without hardware.
 //
-// Why the flow needs to track this at all: the firmware reports success,
-// failure, and the computed scale only on the *tracker's own* serial console —
-// nothing comes back over the radio (see the Phase 1 handoff, Task F3). Until
-// that gap is closed, the phase we show is inferred from the receiver's ack
-// plus the orientation feed, and the real success detector is the verification
-// spin at the end.
+// Two sources drive the phase machine. Firmware with the sens-cal report
+// (Phase 1b, Task F3) streams its own phase, verdict, and computed scale, which
+// the receiver echoes on its console; when those lines arrive they are the
+// truth. Older firmware reports nothing over the radio, so the machine also
+// infers the phase from the receiver's ack plus the orientation feed and its
+// own copy of the firmware's timeouts — and falls back to that whenever the
+// report goes quiet. Either way the verification spin at the end measures the
+// one thing the firmware cannot: the residual error after the correction.
 //
 // One simplification worth stating: the spin is always about **world up**. The
 // axis in `sens auto <x|y|z>` selects which *body* axis the user stands
@@ -19,8 +21,14 @@
 // against the commanded axis — is the same quantity as tilt measured in the
 // world frame here, as long as the user placed the tracker as instructed.
 
-import { RECEIVER_CONSOLE, SENS_CAL } from './config'
-import type { Quaternion, SensCalAxis } from './types'
+import {
+  RECEIVER_CONSOLE,
+  SENS_CAL,
+  SENS_CAL_PHASE,
+  SENS_CAL_REPORT_AXES,
+  SENS_CAL_RESULT
+} from './config'
+import type { Quaternion, SensCalAxis, SensCalReport } from './types'
 
 const RAD_TO_DEG = 180 / Math.PI
 
@@ -192,6 +200,32 @@ export function offAxisRatio(acc: TurnAccumulator): number {
 }
 
 // ---------------------------------------------------------------------------
+// Firmware report
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse one receiver console line into the tracker's sens-cal report, or
+ * `null` if the line is anything else.
+ */
+export function parseSensCalReport(line: string): SensCalReport | null {
+  const m = RECEIVER_CONSOLE.sensCalReportRegex.exec(line)
+  if (!m) return null
+  const axisCode = Number(m[4])
+  const axis = SENS_CAL_REPORT_AXES[axisCode]
+  if (!axis) return null
+  const scaleQ12 = Number(m[6])
+  return {
+    slot: Number(m[1]),
+    phase: Number(m[2]),
+    result: Number(m[3]),
+    axis,
+    seq: Number(m[5]),
+    scale: scaleQ12 > 0 ? scaleQ12 / SENS_CAL.reportScaleQ12 : undefined,
+    progressDeg: Number(m[7])
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Phase machine
 // ---------------------------------------------------------------------------
 
@@ -219,19 +253,30 @@ export type SensCalFailure =
   | 'no-spin'
   /** The spin did not finish inside `spinTimeoutMs`. */
   | 'spin-timeout'
+  /** The tracker itself rejected the run — see `SensCalState.result`. */
+  | 'firmware'
   /** The user left the flow. */
   | 'aborted'
 
 /**
- * Best guess at *why* a run failed, for the failure copy. Inferred from what
- * we measured, because the firmware's own verdict never leaves the tracker.
+ * Best guess at *why* a run failed, for the failure copy. Taken from the
+ * firmware's result code when there is one, otherwise inferred from what we
+ * measured.
  */
-export type SensCalCause = 'off-axis' | 'too-slow' | 'under-spun' | 'unknown'
+export type SensCalCause =
+  | 'off-axis'
+  | 'too-slow'
+  | 'under-spun'
+  | 'miscount'
+  | 'not-still'
+  | 'unknown'
 
 export interface SensCalState {
   phase: SensCalPhase
   axis: SensCalAxis
   revolutions: number
+  /** Receiver slot the command went to; reports from other slots are ignored. */
+  slot: number | null
   /** Latest timestamp fed in, in ms on the caller's clock. */
   nowMs: number
   /** When the current phase began. */
@@ -241,6 +286,20 @@ export interface SensCalState {
   acc: TurnAccumulator
   failure?: SensCalFailure
   cause?: SensCalCause
+  /** Firmware result code (`SENS_CAL_RESULT`) once the tracker has ruled. */
+  result?: number
+  /** Latest report from the tracker for *this* run. */
+  report?: SensCalReport
+  /** When `report` arrived; decides whether the report is still trusted. */
+  reportAtMs?: number
+  /**
+   * Latest report seen on the console at any time, kept across runs. A run
+   * that starts inside the tracker's 10 s linger would otherwise mistake the
+   * previous verdict for its own.
+   */
+  lastReport?: SensCalReport
+  /** `seq` of a verdict that was already on the console when this run began. */
+  staleDoneSeq?: number
 }
 
 export function initialSensCalState(
@@ -251,6 +310,7 @@ export function initialSensCalState(
     phase: 'idle',
     axis,
     revolutions,
+    slot: null,
     nowMs: 0,
     phaseStartedAtMs: 0,
     spinStartedAtMs: null,
@@ -258,9 +318,27 @@ export function initialSensCalState(
   }
 }
 
+/**
+ * A fresh state for the next run that keeps what has to survive between runs:
+ * the last report seen, so a lingering verdict from the previous run is not
+ * mistaken for the new one.
+ */
+export function prepareSensCal(
+  previous: SensCalState,
+  axis: SensCalAxis,
+  revolutions: number = SENS_CAL.revolutions
+): SensCalState {
+  const lastReport = previous.report ?? previous.lastReport
+  return {
+    ...initialSensCalState(axis, revolutions),
+    lastReport,
+    staleDoneSeq: lastReport?.phase === SENS_CAL_PHASE.done ? lastReport.seq : undefined
+  }
+}
+
 export type SensCalEvent =
   /** The `send … sens auto …` command has been written to the receiver. */
-  | { type: 'sent'; axis: SensCalAxis; revolutions: number; atMs: number }
+  | { type: 'sent'; axis: SensCalAxis; revolutions: number; slot?: number; atMs: number }
   /** A line from the receiver console. */
   | { type: 'console'; line: string; atMs: number }
   /** An orientation sample from the live feed. */
@@ -282,6 +360,79 @@ function fail(state: SensCalState, failure: SensCalFailure, atMs: number): SensC
 }
 
 /**
+ * Whether the tracker's own report is current enough to trust over the local
+ * timeout inference. Reports arrive at 2 Hz while a run is live, so silence
+ * for `SENS_CAL.reportStaleMs` means either older firmware or a lost link —
+ * both cases where the local clocks are the best information available.
+ */
+export function reportFresh(state: SensCalState, atMs: number = state.nowMs): boolean {
+  return state.reportAtMs !== undefined && atMs - state.reportAtMs <= SENS_CAL.reportStaleMs
+}
+
+/** Order of phases, so a report can only move the machine forward. */
+const PHASE_RANK: Record<SensCalPhase, number> = {
+  idle: 0,
+  sending: 1,
+  bias: 2,
+  'ready-to-spin': 3,
+  spinning: 4,
+  stopping: 4,
+  complete: 5,
+  failed: 5
+}
+
+function phaseForReport(report: SensCalReport): SensCalPhase | null {
+  switch (report.phase) {
+    case SENS_CAL_PHASE.holdStill:
+    case SENS_CAL_PHASE.bias:
+      return 'bias'
+    case SENS_CAL_PHASE.armed:
+      return 'ready-to-spin'
+    case SENS_CAL_PHASE.recording:
+      return 'spinning'
+    default:
+      return null
+  }
+}
+
+/**
+ * Fold in one report from the tracker. In-progress phases only ever move the
+ * machine forward — the local rate detection usually notices the spin start
+ * before the 2 Hz report does, and must not be dragged back. A verdict is
+ * authoritative and always applies, so a rejection the tracker reaches after
+ * the spin has stopped (off-axis, scale out of range) overrides a local
+ * "complete".
+ */
+function applyReport(state: SensCalState, report: SensCalReport, atMs: number): SensCalState {
+  const tracked = { ...state, nowMs: atMs, lastReport: report }
+  if (state.slot !== null && report.slot !== state.slot) return { ...state, nowMs: atMs }
+  if (state.phase === 'idle' || state.phase === 'failed' || state.phase === 'complete') {
+    return tracked
+  }
+  const isDone = report.phase === SENS_CAL_PHASE.done
+  if (isDone && report.seq === state.staleDoneSeq) return tracked
+
+  const s: SensCalState = { ...tracked, report, reportAtMs: atMs }
+  if (isDone) {
+    const ruled = { ...s, result: report.result, staleDoneSeq: report.seq }
+    return report.result === SENS_CAL_RESULT.ok
+      ? enter(ruled, 'complete', atMs)
+      : fail(ruled, 'firmware', atMs)
+  }
+
+  const target = phaseForReport(report)
+  if (target === null || PHASE_RANK[target] <= PHASE_RANK[s.phase]) return s
+  if (target === 'spinning') {
+    return {
+      ...enter(s, 'spinning', atMs),
+      spinStartedAtMs: atMs,
+      acc: { ...s.acc, totalDeg: 0, offAxisDeg: 0 }
+    }
+  }
+  return enter(s, target, atMs)
+}
+
+/**
  * Advance the machine by one event. Pure: same state in, same state out, so
  * the whole run can be replayed in a test from a list of events.
  */
@@ -289,8 +440,9 @@ export function reduceSensCal(state: SensCalState, event: SensCalEvent): SensCal
   switch (event.type) {
     case 'sent':
       return {
-        ...initialSensCalState(event.axis, event.revolutions),
+        ...prepareSensCal(state, event.axis, event.revolutions),
         phase: 'sending',
+        slot: event.slot ?? null,
         nowMs: event.atMs,
         phaseStartedAtMs: event.atMs
       }
@@ -299,6 +451,8 @@ export function reduceSensCal(state: SensCalState, event: SensCalEvent): SensCal
       return { ...enter(state, 'failed', event.atMs), failure: 'aborted' }
 
     case 'console': {
+      const report = parseSensCalReport(event.line)
+      if (report) return applyReport(state, report, event.atMs)
       if (state.phase !== 'sending') return { ...state, nowMs: event.atMs }
       if (RECEIVER_CONSOLE.sensAutoRejectRegex.test(event.line)) {
         return fail(state, 'rejected', event.atMs)
@@ -317,10 +471,19 @@ export function reduceSensCal(state: SensCalState, event: SensCalEvent): SensCal
   }
 }
 
-/** Timeout / threshold checks, run after every clock or rotation event. */
+/**
+ * Timeout / threshold checks, run after every clock or rotation event.
+ *
+ * While the tracker's own report is fresh, the local clocks only *observe*:
+ * they still notice the spin starting and stopping (the report is 2 Hz, the
+ * feed is much faster) but leave every verdict — timeouts included — to the
+ * tracker. When the report goes quiet the same clocks become the verdict, as
+ * they were before the firmware could report at all.
+ */
 function advance(state: SensCalState, atMs: number): SensCalState {
   const s = { ...state, nowMs: atMs }
   const inPhaseMs = atMs - s.phaseStartedAtMs
+  const trusted = reportFresh(s, atMs)
 
   switch (s.phase) {
     case 'sending':
@@ -328,7 +491,8 @@ function advance(state: SensCalState, atMs: number): SensCalState {
 
     case 'bias':
       // The tracker averages gyro bias for a fixed window, then asks for the
-      // spin. Nothing is reported, so we mirror the firmware's own clock.
+      // spin. A reporting tracker says so itself; otherwise mirror its clock.
+      if (trusted) return s
       return inPhaseMs >= SENS_CAL.biasWindowMs ? enter(s, 'ready-to-spin', atMs) : s
 
     case 'ready-to-spin':
@@ -340,11 +504,12 @@ function advance(state: SensCalState, atMs: number): SensCalState {
           acc: { ...s.acc, totalDeg: 0, offAxisDeg: 0 }
         }
       }
+      if (trusted) return s
       return inPhaseMs > SENS_CAL.startTimeoutMs ? fail(s, 'no-spin', atMs) : s
 
     case 'spinning': {
       const spinMs = atMs - (s.spinStartedAtMs ?? s.phaseStartedAtMs)
-      if (spinMs > SENS_CAL.spinTimeoutMs) return fail(s, 'spin-timeout', atMs)
+      if (!trusted && spinMs > SENS_CAL.spinTimeoutMs) return fail(s, 'spin-timeout', atMs)
       // The firmware only accepts a stop once enough angle has been covered
       // *and* the tracker has gone quiet — under-spinning does not produce a
       // bad calibration, it hangs until the timeout.
@@ -356,9 +521,12 @@ function advance(state: SensCalState, atMs: number): SensCalState {
 
     case 'stopping': {
       const spinMs = atMs - (s.spinStartedAtMs ?? s.phaseStartedAtMs)
-      if (spinMs > SENS_CAL.spinTimeoutMs) return fail(s, 'spin-timeout', atMs)
+      if (!trusted && spinMs > SENS_CAL.spinTimeoutMs) return fail(s, 'spin-timeout', atMs)
       // Moving again cancels the dwell, exactly as the firmware does.
       if (s.acc.rateDps >= SENS_CAL.stopRateDps) return enter(s, 'spinning', atMs)
+      // A reporting tracker delivers the verdict itself; the dwell is only
+      // the local guess at when that will be.
+      if (trusted) return s
       return inPhaseMs >= SENS_CAL.stopDwellMs ? enter(s, 'complete', atMs) : s
     }
 
@@ -371,14 +539,48 @@ function advance(state: SensCalState, atMs: number): SensCalState {
 // Selectors — everything the UI reads, derived rather than stored
 // ---------------------------------------------------------------------------
 
-/** Turns completed in the current spin. */
+/** Turns completed in the current spin, from the orientation feed. */
 export function turnsCompleted(state: SensCalState): number {
   return turnsMeasured(state.acc)
 }
 
-/** True once the firmware would accept a stop (`SENS_CAL.minFraction`). */
+/**
+ * Turns completed as the tracker itself counts them (its integrated gyro
+ * angle), or `undefined` before it has reported any. Updated at 2 Hz, so the
+ * live counter stays on `turnsCompleted`; this is the number the firmware's
+ * own stop criterion uses.
+ */
+export function firmwareTurns(state: SensCalState): number | undefined {
+  const report = state.report
+  if (!report || report.phase < SENS_CAL_PHASE.recording) return undefined
+  return report.progressDeg / 360
+}
+
+/** The gyro scale the tracker computed and saved, once it has reported one. */
+export function firmwareScale(state: SensCalState): number | undefined {
+  return state.report?.scale
+}
+
+/**
+ * True once the firmware would accept a stop (`SENS_CAL.minFraction`). Uses
+ * whichever count is further along: the tracker's own, when it reports one,
+ * is what it will actually judge by.
+ */
 export function hasEnoughAngle(state: SensCalState): boolean {
-  return turnsMeasured(state.acc) >= state.revolutions * SENS_CAL.minFraction
+  const turns = Math.max(turnsMeasured(state.acc), firmwareTurns(state) ?? 0)
+  return turns >= state.revolutions * SENS_CAL.minFraction
+}
+
+/**
+ * True while the tracker has gone quiet after the spin and the flow is waiting
+ * on its verdict rather than its own dwell clock.
+ */
+export function awaitingVerdict(state: SensCalState): boolean {
+  return (
+    state.phase === 'stopping' &&
+    reportFresh(state) &&
+    state.nowMs - state.phaseStartedAtMs >= SENS_CAL.stopDwellMs
+  )
 }
 
 /**
@@ -424,16 +626,34 @@ export function offAxisLevel(state: SensCalState): 'ok' | 'warn' | 'reject' {
 }
 
 /**
- * Most likely reason a run failed. The firmware's own verdict never leaves the
- * tracker, so this reads our own measurements: too much tilt is the commonest
- * failure for a hand-turned tracker stood on edge, and otherwise a timeout
- * means the spin was too slow to finish the required angle in the budget.
+ * Most likely reason a run failed. With a firmware verdict the result code
+ * names it outright; without one this reads our own measurements: too much
+ * tilt is the commonest failure for a hand-turned tracker stood on edge, and
+ * otherwise a timeout means the spin was too slow to finish the required angle
+ * in the budget.
  */
 export function inferCause(state: SensCalState, failure: SensCalFailure): SensCalCause {
+  const timedOut = (): SensCalCause => {
+    if (offAxisRatio(state.acc) >= SENS_CAL.offAxisWarnRatio) return 'off-axis'
+    if (!hasEnoughAngle(state)) return 'too-slow'
+    return 'under-spun'
+  }
+  if (failure === 'firmware') {
+    switch (state.report?.result) {
+      case SENS_CAL_RESULT.offAxis:
+        return 'off-axis'
+      case SENS_CAL_RESULT.spinTimeout:
+        return timedOut()
+      case SENS_CAL_RESULT.scaleRange:
+        return 'miscount'
+      case SENS_CAL_RESULT.notStill:
+        return 'not-still'
+      default:
+        return 'unknown'
+    }
+  }
   if (failure !== 'spin-timeout') return 'unknown'
-  if (offAxisRatio(state.acc) >= SENS_CAL.offAxisWarnRatio) return 'off-axis'
-  if (!hasEnoughAngle(state)) return 'too-slow'
-  return 'under-spun'
+  return timedOut()
 }
 
 // ---------------------------------------------------------------------------
@@ -442,8 +662,10 @@ export function inferCause(state: SensCalState, failure: SensCalFailure): SensCa
 
 /**
  * Result of the verification spin: the user turns the tracker a known number
- * of times and we compare the measured angle against the truth. This is the
- * only real success detector until the firmware reports its own result.
+ * of times and we compare the measured angle against the truth. The firmware
+ * can say whether it *saved* a scale; only this measures whether the saved
+ * scale is right, and it is the only success signal at all on firmware that
+ * does not report.
  */
 export interface VerificationResult {
   measuredDeg: number

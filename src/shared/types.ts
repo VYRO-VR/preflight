@@ -225,6 +225,26 @@ export interface SensCalRequest {
   revolutions: number
 }
 
+/**
+ * The tracker's own view of a sensitivity calibration run, as echoed by the
+ * receiver on its console (see `RECEIVER_CONSOLE.sensCalReportRegex`). Phase
+ * and result values are `SENS_CAL_PHASE` / `SENS_CAL_RESULT` in config.
+ */
+export interface SensCalReport {
+  /** Receiver slot of the reporting tracker. */
+  slot: number
+  phase: number
+  /** `SENS_CAL_RESULT.none` while the run is still in progress. */
+  result: number
+  axis: SensCalAxis
+  /** Incremented once per completed run; tells a fresh verdict from a linger. */
+  seq: number
+  /** Computed gyro scale, or `undefined` when not applicable. */
+  scale?: number
+  /** Integrated absolute rotation so far, in degrees, from the tracker's gyro. */
+  progressDeg: number
+}
+
 // ---------------------------------------------------------------------------
 // Firmware
 // ---------------------------------------------------------------------------

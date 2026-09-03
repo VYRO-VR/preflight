@@ -281,6 +281,7 @@ export const zh: Record<string, string> = {
   'senscal.phase.ready': '现在开始旋转——匀速转动，贴着表面。',
   'senscal.phase.spinning': '正在记录。继续转动。',
   'senscal.phase.stopping': '靠回边缘停下并保持静止。',
+  'senscal.phase.verdict': '请保持静止——正在等待追踪器确认这次测量…',
   'senscal.phase.complete': '旋转已被接受。',
 
   'senscal.fail.title': '这次没有成功',
@@ -289,17 +290,37 @@ export const zh: Record<string, string> = {
   'senscal.fail.nospin': '追踪器没有检测到旋转开始。',
   'senscal.fail.timeout': '旋转没有在时限内完成。',
   'senscal.fail.aborted': '校准已取消。',
+  'senscal.fail.fw.invalidparams': '追踪器认为该请求无效并拒绝了。',
+  'senscal.fail.fw.notstill': '测量开始时追踪器仍在移动。',
+  'senscal.fail.fw.gyrotimeout': '追踪器在测量途中收不到陀螺仪数据。',
+  'senscal.fail.fw.nobiassamples': '追踪器无法测量陀螺仪零偏。',
+  'senscal.fail.fw.nospin': '追踪器没有检测到旋转开始。',
+  'senscal.fail.fw.spintimeout': '追踪器放弃等待旋转结束。',
+  'senscal.fail.fw.angletoosmall': '追踪器几乎没有测到旋转。',
+  'senscal.fail.fw.invalidscale': '追踪器算出了无效的比例系数。没有保存任何内容。',
+  'senscal.fail.fw.offaxis': '追踪器拒绝了这次测量：离轴运动过多。没有保存任何内容。',
+  'senscal.fail.fw.scalerange':
+    '追踪器测得 {turns} 圈而不是 {target} 圈——比例系数 {scale} 超出了它接受的范围。没有保存任何内容。',
+  'senscal.fail.fw.noretained': '追踪器无法保存结果。',
+  'senscal.fail.fw.unknown': '追踪器拒绝了这次测量（代码 {code}）。',
   'senscal.fail.cause.offaxis': '最可能的原因：追踪器倾斜或被抬起。请全程贴着表面平推。',
   'senscal.fail.cause.tooslow':
     '最可能的原因：转得太慢。下次快一点——10 圈必须在 {budget} 秒内完成。',
   'senscal.fail.cause.underspun': '最可能的原因：追踪器没有干净地停下。把它靠回边缘并保持静止。',
+  'senscal.fail.cause.miscount':
+    '最可能的原因：圈数数错了。请从边缘开始、在边缘停下，精确地转满 10 圈。',
+  'senscal.fail.cause.notstill':
+    '最可能的原因：追踪器在提示旋转之前被碰动了。把它靠在边缘，在出现旋转提示前不要触碰。',
   'senscal.fail.cause.unknown': '请再试一次。',
   'senscal.fail.retry': '重试这个轴',
   'senscal.fail.skip': '跳过这个轴',
 
   'senscal.verify.title': '检查结果',
-  'senscal.verify.body':
-    '追踪器不会把结果告诉外部，所以在这里实测：用同样的方式再转 {turns} 圈，然后靠回边缘停下。',
+  'senscal.verify.body': '现在实测结果：用同样的方式再转 {turns} 圈，然后靠回边缘停下。',
+  'senscal.verify.accepted.title': '追踪器已接受这次测量',
+  'senscal.verify.accepted': '它保存了 {scale} 的陀螺仪比例系数——修正量 {pct}%。',
+  'senscal.verify.inferred':
+    '这台追踪器的固件不会报告结果，所以这项检查是判断测量是否生效的唯一依据。',
   'senscal.verify.start': '开始检查',
   'senscal.verify.finish': '我已经转完了',
   'senscal.verify.turns': '已测得 {turns} 圈',

@@ -428,3 +428,233 @@ describe('verifySpin', () => {
     expect(result.pass).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Firmware report (Phase 1b, Task F3)
+// ---------------------------------------------------------------------------
+
+import { SENS_CAL_PHASE, SENS_CAL_RESULT } from '../src/shared/config'
+import {
+  awaitingVerdict,
+  firmwareScale,
+  firmwareTurns,
+  parseSensCalReport,
+  prepareSensCal,
+  reportFresh
+} from '../src/shared/sens-cal'
+
+/** The receiver's console echo of one report, log prefix included. */
+function reportLine({
+  slot = 0,
+  phase,
+  result = SENS_CAL_RESULT.none,
+  axis = 2,
+  seq = 0,
+  scaleQ12 = 0,
+  progress = 0
+}: {
+  slot?: number
+  phase: number
+  result?: number
+  axis?: number
+  seq?: number
+  scaleQ12?: number
+  progress?: number
+}): string {
+  return `[00:01:02.345,678] <inf> esb_event: Sens cal tracker ${slot}: phase ${phase} result ${result} axis ${axis} seq ${seq} scale ${scaleQ12} progress ${progress}`
+}
+
+function report(s: SensCalState, atMs: number, r: Parameters<typeof reportLine>[0]): SensCalState {
+  return reduceSensCal(s, { type: 'console', line: reportLine(r), atMs })
+}
+
+describe('parseSensCalReport', () => {
+  it('parses the receiver echo, prefix and all', () => {
+    const r = parseSensCalReport(
+      reportLine({ slot: 3, phase: 5, result: 1, axis: 0, seq: 7, scaleQ12: 4113, progress: 3598 })
+    )
+    expect(r).toEqual({
+      slot: 3,
+      phase: SENS_CAL_PHASE.done,
+      result: SENS_CAL_RESULT.ok,
+      axis: 'x',
+      seq: 7,
+      scale: 4113 / 4096,
+      progressDeg: 3598
+    })
+  })
+
+  it('reports no scale when the tracker sent zero', () => {
+    expect(parseSensCalReport(reportLine({ phase: 4 }))?.scale).toBeUndefined()
+  })
+
+  it('ignores every other console line', () => {
+    expect(parseSensCalReport(ACK)).toBeNull()
+    expect(parseSensCalReport('Sens cal tracker 0: phase x')).toBeNull()
+  })
+})
+
+describe('report-driven run', () => {
+  const sent = (): SensCalState =>
+    reduceSensCal(initialSensCalState(), {
+      type: 'sent',
+      axis: 'z',
+      revolutions: 10,
+      slot: 0,
+      atMs: 0
+    })
+
+  it('follows the tracker through hold-still, armed, and recording', () => {
+    let s = report(sent(), 100, { phase: SENS_CAL_PHASE.holdStill })
+    expect(s.phase).toBe('bias')
+    expect(reportFresh(s)).toBe(true)
+
+    // Without the tracker saying so, the bias window would have expired by now.
+    s = reduceSensCal(s, { type: 'tick', atMs: 100 + SENS_CAL.biasWindowMs + 500 })
+    expect(s.phase).toBe('bias')
+
+    s = report(s, 2000, { phase: SENS_CAL_PHASE.armed })
+    expect(s.phase).toBe('ready-to-spin')
+
+    s = report(s, 2500, { phase: SENS_CAL_PHASE.recording, progress: 40 })
+    expect(s.phase).toBe('spinning')
+    expect(s.spinStartedAtMs).toBe(2500)
+    expect(firmwareTurns(s)).toBeCloseTo(40 / 360)
+  })
+
+  it('stands in for the receiver ack', () => {
+    const s = report(sent(), ACK_TIMEOUT_MS + 1000, { phase: SENS_CAL_PHASE.holdStill })
+    expect(s.phase).toBe('bias')
+  })
+
+  it('never drags the machine backwards', () => {
+    let s = report(sent(), 100, { phase: SENS_CAL_PHASE.armed })
+    const { samples } = spin({ totalDeg: 360, dps: 360, startMs: 200 })
+    for (const sample of samples) {
+      s = reduceSensCal(s, { type: 'rotation', quat: sample.quat, atMs: sample.atMs })
+    }
+    expect(s.phase).toBe('spinning')
+    const started = s.spinStartedAtMs
+    // The 2 Hz report is still on "armed" — it must not restart the spin.
+    s = report(s, 600, { phase: SENS_CAL_PHASE.armed })
+    expect(s.phase).toBe('spinning')
+    expect(s.spinStartedAtMs).toBe(started)
+    expect(turnsCompleted(s)).toBeGreaterThan(0.9)
+  })
+
+  it('waits for the verdict instead of completing on its own dwell', () => {
+    let s = report(sent(), 100, { phase: SENS_CAL_PHASE.recording })
+    const { samples, endMs } = spin({ totalDeg: 3600, dps: 360, startMs: 200 })
+    for (const sample of samples) {
+      s = reduceSensCal(s, { type: 'rotation', quat: sample.quat, atMs: sample.atMs })
+    }
+    const last = samples[samples.length - 1].quat
+    let atMs = endMs
+    while (atMs < endMs + 4000) {
+      atMs += 30
+      s = reduceSensCal(s, { type: 'rotation', quat: last, atMs })
+      if (atMs % 500 < 30) s = report(s, atMs, { phase: SENS_CAL_PHASE.recording, progress: 3600 })
+    }
+    expect(s.phase).toBe('stopping')
+    expect(awaitingVerdict(s)).toBe(true)
+
+    s = report(s, atMs, {
+      phase: SENS_CAL_PHASE.done,
+      result: SENS_CAL_RESULT.ok,
+      seq: 1,
+      scaleQ12: 4113,
+      progress: 3598
+    })
+    expect(s.phase).toBe('complete')
+    expect(s.result).toBe(SENS_CAL_RESULT.ok)
+    expect(firmwareScale(s)).toBeCloseTo(4113 / 4096)
+  })
+
+  it('lets a late rejection override a spin that looked fine', () => {
+    let s = report(sent(), 100, { phase: SENS_CAL_PHASE.recording })
+    s = report(s, 30000, {
+      phase: SENS_CAL_PHASE.done,
+      result: SENS_CAL_RESULT.offAxis,
+      seq: 1,
+      scaleQ12: 4100
+    })
+    expect(s.phase).toBe('failed')
+    expect(s.failure).toBe('firmware')
+    expect(s.result).toBe(SENS_CAL_RESULT.offAxis)
+    expect(s.cause).toBe('off-axis')
+    // The scale is still reported so the user can see how far off it was.
+    expect(firmwareScale(s)).toBeCloseTo(4100 / 4096)
+  })
+
+  it('names a miscount when the scale was out of range', () => {
+    const s = report(report(sent(), 100, { phase: SENS_CAL_PHASE.recording }), 200, {
+      phase: SENS_CAL_PHASE.done,
+      result: SENS_CAL_RESULT.scaleRange,
+      seq: 1
+    })
+    expect(s.cause).toBe('miscount')
+  })
+
+  it('uses the tracker count for the stop criterion', () => {
+    const s = report(report(sent(), 100, { phase: SENS_CAL_PHASE.recording }), 200, {
+      phase: SENS_CAL_PHASE.recording,
+      progress: 3300
+    })
+    expect(turnsCompleted(s)).toBe(0)
+    expect(hasEnoughAngle(s)).toBe(true)
+  })
+
+  it('ignores reports from another slot', () => {
+    const s = report(sent(), 100, { slot: 4, phase: SENS_CAL_PHASE.holdStill })
+    expect(s.phase).toBe('sending')
+    expect(s.report).toBeUndefined()
+  })
+
+  it('ignores the previous run lingering on the console', () => {
+    // A verdict from the last run is still being repeated when the next one starts.
+    const prev = report(report(sent(), 100, { phase: SENS_CAL_PHASE.recording }), 200, {
+      phase: SENS_CAL_PHASE.done,
+      result: SENS_CAL_RESULT.ok,
+      seq: 3,
+      scaleQ12: 4096
+    })
+    expect(prev.phase).toBe('complete')
+
+    let s = reduceSensCal(prepareSensCal(prev, 'x'), {
+      type: 'sent',
+      axis: 'x',
+      revolutions: 10,
+      slot: 0,
+      atMs: 1000
+    })
+    expect(s.staleDoneSeq).toBe(3)
+    s = report(s, 1100, { phase: SENS_CAL_PHASE.done, result: SENS_CAL_RESULT.ok, seq: 3 })
+    expect(s.phase).toBe('sending')
+
+    // In-progress reports of the new run still carry the old seq — that is fine.
+    s = report(s, 1600, { phase: SENS_CAL_PHASE.holdStill, seq: 3 })
+    expect(s.phase).toBe('bias')
+    // A fresh verdict has a new seq and applies.
+    s = report(s, 2000, { phase: SENS_CAL_PHASE.done, result: SENS_CAL_RESULT.notStill, seq: 4 })
+    expect(s.phase).toBe('failed')
+    expect(s.cause).toBe('not-still')
+  })
+
+  it('falls back to its own timeouts when the report goes quiet', () => {
+    let s = report(sent(), 100, { phase: SENS_CAL_PHASE.armed })
+    expect(s.phase).toBe('ready-to-spin')
+    // Reports keep coming: the local start timeout is not applied.
+    let atMs = 100
+    while (atMs < 100 + SENS_CAL.startTimeoutMs + 2000) {
+      atMs += 500
+      s = report(s, atMs, { phase: SENS_CAL_PHASE.armed })
+    }
+    expect(s.phase).toBe('ready-to-spin')
+
+    // Silence: after the stale window the local clock rules again.
+    s = reduceSensCal(s, { type: 'tick', atMs: atMs + SENS_CAL.reportStaleMs + 1 })
+    expect(reportFresh(s)).toBe(false)
+    expect(s.phase).toBe('failed')
+    expect(s.failure).toBe('no-spin')
+  })
+})

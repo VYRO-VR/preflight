@@ -191,7 +191,9 @@ export const RECEIVER_SERIAL = {
 // failure copy, so a stale value shows up as bad coaching, not a crash.
 //
 // VERIFY against the firmware build actually shipping on VYRO trackers
-// (checked against VYRO-VR/jitingcn-smol-slime-firmware @ 2e8f2b4).
+// (checked against VYRO-VR/jitingcn-smol-slime-firmware @ 86f3f0e, and the
+// receiver's console echo of the report against SlimeVR-Tracker-nRF-Receiver
+// @ ce2535a plus the yaw-drift-calibration branch).
 export const SENS_CAL = {
   /**
    * Revolutions requested per axis. The firmware default is 2; 10 buys a much
@@ -242,8 +244,51 @@ export const SENS_CAL = {
    * Verification spin: residual yaw error per turn, in degrees, at or under
    * which the axis passes. 0.5°/turn ≈ 0.14% remaining scale error.
    */
-  verifyPassDegPerTurn: 0.5
+  verifyPassDegPerTurn: 0.5,
+
+  /**
+   * The tracker's own progress report (`Sens cal tracker …` on the receiver
+   * console, from the firmware's `sens_cal_report`). It arrives at 2 Hz while
+   * a run is live plus a 10 s linger after the verdict. Once a report has been
+   * seen the flow trusts it over its own timeouts, until it goes quiet for
+   * this long — then the timeout inference takes over again.
+   */
+  reportStaleMs: 3000,
+  /** `scale_q12` divisor: the reported scale is a Q12 fixed-point number. */
+  reportScaleQ12: 4096
 }
+
+/**
+ * Wire enums of the firmware's sens-cal report (`cal_sens.h`). Values are a
+ * contract — the firmware only ever appends, never renumbers.
+ */
+export const SENS_CAL_PHASE = {
+  idle: 0,
+  holdStill: 1,
+  bias: 2,
+  armed: 3,
+  recording: 4,
+  done: 5
+} as const
+
+export const SENS_CAL_RESULT = {
+  none: 0,
+  ok: 1,
+  invalidParams: 2,
+  notStill: 3,
+  gyroTimeout: 4,
+  noBiasSamples: 5,
+  noSpin: 6,
+  spinTimeout: 7,
+  angleTooSmall: 8,
+  invalidScale: 9,
+  offAxis: 10,
+  scaleRange: 11,
+  noRetained: 12
+} as const
+
+/** Wire axis codes in the report: `0 = X`, `1 = Y`, `2 = Z`. */
+export const SENS_CAL_REPORT_AXES = ['x', 'y', 'z'] as const
 
 // Receiver console commands used by the sensitivity-calibration flow. Kept
 // beside RECEIVER_SERIAL rather than inside it because these are *tracker*
@@ -265,7 +310,15 @@ export const RECEIVER_CONSOLE = {
    */
   sensAutoAckRegex: /Sens auto request sent to tracker (\d+) on ([xyz]) axis for (\d+) rev/i,
   /** Receiver rejections — `Invalid axis 'q'` / `Invalid revolutions '0'`. */
-  sensAutoRejectRegex: /Invalid (axis|revolutions)\s+'([^']*)'/i
+  sensAutoRejectRegex: /Invalid (axis|revolutions)\s+'([^']*)'/i,
+  /**
+   * The receiver's echo of the tracker's sens-cal report, one line per report:
+   * `Sens cal tracker 0: phase 4 result 0 axis 2 seq 3 scale 0 progress 1234`.
+   * Capture groups: slot, phase, result, axis, seq, scale_q12, progress (deg).
+   * The line carries a log prefix, so nothing is anchored.
+   */
+  sensCalReportRegex:
+    /Sens cal tracker (\d+): phase (\d+) result (\d+) axis (\d+) seq (\d+) scale (\d+) progress (\d+)/i
 }
 
 // Developer bulk flash — the pin-fixture bootloader programming loop behind
