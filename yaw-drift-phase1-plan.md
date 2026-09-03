@@ -18,13 +18,21 @@ Verified against `VYRO-VR/jitingcn-smol-slime-firmware@2e8f2b4` (dev) and
    ending in "spin did not complete in time". The on-screen counter is the only thing
    telling the user they are not done yet.
 
-2. **Hard time budget.** `SENS_CAL_START_TIMEOUT_MS` = 30 s to begin spinning after the
-   command, `SENS_CAL_SPIN_TIMEOUT_MS` = 60 s for the whole spin. At the handoff's
-   10 revolutions that is ≤6 s per turn *including* the careful stop. **Recommend
-   defaulting to 6 revolutions (10 s/turn budget) with 10 offered as a "precise" option.**
-   The alignment error floor scales as 1/revolutions: ±1° edge alignment is 0.06% at
-   6 rev vs 0.03% at 10 rev — both an order of magnitude below the ~0.5% scale error
-   being removed, so the extra time buys little and costs runs that time out.
+2. **Hard time budget — 10 revolutions is the decision, and it is tight.**
+   `SENS_CAL_START_TIMEOUT_MS` = 30 s to begin spinning after the command,
+   `SENS_CAL_SPIN_TIMEOUT_MS` = 60 s for the whole spin. At 10 revolutions that leaves
+   ≤6 s per turn *including* the final careful edge-aligned stop, which needs ~2-3 s of
+   the budget — so the spin itself must average nearer 5.5 s/turn. 10 rev buys the
+   tighter alignment error floor (±1° over 10 turns = 0.03%, vs 0.06% at 6), well under
+   the ~0.5% scale error being removed.
+   The flow must actively make that pace achievable rather than just reporting failure:
+   - a **pace guide** during the spin (target turn count vs elapsed, e.g. a moving
+     "you should be at 4.2 turns by now" marker beside the live counter),
+   - a **remaining-time countdown** against the 60 s budget, visibly urgent under ~15 s,
+   - a dry-run/practice turn before the real command so the user learns the cadence
+     without burning a run,
+   - and copy on the timeout failure that says "spin a little faster next time", since
+     that is what the firmware's `spin did not complete in time` actually means.
    Ceiling is 100 on both sides (`SENS_CAL_MAX_REVOLUTIONS`, `SENS_AUTO_MAX_REVOLUTIONS`).
 
 3. **A rejection reason the handoff does not list: off-axis motion.**
@@ -97,7 +105,7 @@ Verified against `VYRO-VR/jitingcn-smol-slime-firmware@2e8f2b4` (dev) and
 ## Task 3 — guided sensitivity calibration flow
 
 **Config** (`src/shared/config.ts`, single source of truth): command template,
-default/max revolutions, the mirrored firmware constants (bias window 1000 ms, start
+revolutions (default 10, max 100), the mirrored firmware constants (bias window 1000 ms, start
 timeout 30 s, spin timeout 60 s, stop dwell 1 s, start 30 dps / stop 10 dps, min
 fraction 0.85, scale clamp 0.9–1.1, off-axis warn 0.10 / reject 0.25), and the console
 ack/error regexes.
@@ -136,4 +144,3 @@ Then firmware/receiver Task F3, and replace the timeout inference with the real 
 - Does the quaternion feed actually stay live through a sens-cal run? (predicted yes — finding 5)
 - Slot ↔ SlimeVR tracker mapping: is the address ever visible in the SolarXR name? (finding 8)
 - Can the console CDC be held while SlimeVR Server holds the HID interface? (handoff says yes; unverified here)
-- Default revolutions: 6 (recommended) or the handoff's 10?
