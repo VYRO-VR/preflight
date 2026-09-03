@@ -3,7 +3,7 @@
 // changes needed) to keep Preflight current. Values marked TODO
 // must be confirmed against real hardware before release.
 
-import type { ProductDef } from './types'
+import type { ProductDef, SensCalAxis, SensCalPlacement } from './types'
 
 export const APP_NAME = 'VYRO VR Preflight'
 
@@ -191,104 +191,76 @@ export const RECEIVER_SERIAL = {
 // failure copy, so a stale value shows up as bad coaching, not a crash.
 //
 // VERIFY against the firmware build actually shipping on VYRO trackers
-// (checked against VYRO-VR/jitingcn-smol-slime-firmware @ 86f3f0e, and the
-// receiver's console echo of the report against SlimeVR-Tracker-nRF-Receiver
-// @ ce2535a plus the yaw-drift-calibration branch).
+// (checked against VYRO-VR/jitingcn-smol-slime-firmware @ 2e8f2b4).
 export const SENS_CAL = {
   /**
-   * Revolutions requested per axis. The firmware default is 2; 10 buys a much
-   * lower alignment error floor (±1° over 10 turns = 0.03%, vs 0.06% at 6),
-   * well under the ~0.5% scale error being removed. Raising this eats into
-   * `spinTimeoutMs`, which is already tight — see `paceSecondsPerTurn`.
+   * Turns the user makes per axis. Every degree the start and stop poses
+   * differ is spread over these turns, so more turns buy a lower alignment
+   * error floor: ±1° over 10 turns is 0.03%, well under the ~0.5% scale error
+   * being removed. There is no time limit — the app does the measuring.
    */
   revolutions: 10,
-  /** Firmware ceiling (`SENS_CAL_MAX_REVOLUTIONS` / `SENS_AUTO_MAX_REVOLUTIONS`). */
+  /** Sanity ceiling; the firmware's own `sens auto` stops at 100 too. */
   maxRevolutions: 100,
 
-  /** Axes offered, in the order the flow walks the user through them. */
-  axes: ['z', 'x', 'y'] as const,
-
-  /** How long the tracker averages gyro bias before asking for the spin. */
-  biasWindowMs: 1000,
-  /** `SENS_CAL_START_TIMEOUT_MS` — time to begin spinning after the command. */
-  startTimeoutMs: 30000,
-  /** `SENS_CAL_SPIN_TIMEOUT_MS` — budget for the whole spin, stop included. */
-  spinTimeoutMs: 60000,
-  /** `SENS_CAL_STOP_DWELL_MS` — how long the tracker must be still to stop. */
-  stopDwellMs: 1000,
-  /** `SENS_CAL_START_RATE_DPS` — rate that counts as "spinning". */
-  startRateDps: 30,
-  /** `SENS_CAL_STOP_RATE_DPS` — rate below which the stop dwell can run. */
-  stopRateDps: 10,
-  /** `SENS_CAL_MIN_FRACTION` — fraction of the expected angle required. */
-  minFraction: 0.85,
-  /** `SENS_CAL_MIN_SCALE` / `SENS_CAL_MAX_SCALE` — accepted scale clamp. */
-  minScale: 0.9,
-  maxScale: 1.1,
-  /** `SENS_CAL_MAX_OFF_AXIS_RATIO` — off-axis motion that rejects the run. */
-  offAxisRejectRatio: 0.25,
-  /** Off-axis ratio that only warns. */
-  offAxisWarnRatio: 0.1,
+  /**
+   * `CONFIG_SENSOR_SENS_REV` in the tracker firmware. `sens <x>,<y>,<z>` takes
+   * each value as *degrees of difference over this many turns*, and turns it
+   * into a scale of `1 / (1 - deg / (360 * rev))`. A mismatch here scales
+   * every correction by the ratio, so VERIFY it against the firmware build
+   * (prj.conf) whenever the tracker firmware is updated.
+   */
+  firmwareRevolutions: 5,
 
   /**
-   * Pace the on-screen guide asks for, in seconds per turn. Derived, not
-   * independent: `spinTimeoutMs` covers the spin *and* the careful
-   * edge-aligned stop (~2-3 s), so the spin itself has to average faster than
-   * `spinTimeoutMs / revolutions`.
+   * The three placements, in the order the flow walks through them, each with
+   * the firmware gyro axis that is vertical in it. The button-face normal is
+   * the IMU's Z (the IMU sits on the board, parallel to the face); which of
+   * X/Y runs along the long side is an IMU-layout fact — VERIFY against the
+   * board. Getting the two swapped calibrates each with the other's factor.
+   * The long edge comes before the short one because it is the pose the
+   * preview's heading gets pinned from (see `@shared/tracker-frame`).
    */
-  paceSecondsPerTurn: 5.5,
-  /** Remaining seconds under which the countdown turns urgent. */
-  urgentSecondsLeft: 15,
+  placements: [
+    { placement: 'flat', axis: 'z' },
+    { placement: 'long-edge', axis: 'x' },
+    { placement: 'short-edge', axis: 'y' }
+  ] as const satisfies readonly { placement: SensCalPlacement; axis: SensCalAxis }[],
+
+  /** How far from exactly flat / exactly on edge still reads as that placement. */
+  placementToleranceDeg: 15,
+  /** Total rotation rate under which the tracker counts as held still. */
+  stillRateDps: 5,
+  /** How long it has to stay still for the reference pose to be captured. */
+  stillDwellMs: 1000,
+
+  /**
+   * Accepted implied scale, exclusive. Tighter than the firmware's own clamp
+   * (0.9–1.1): its job is to catch a miscount, and the likeliest miscount is
+   * half a turn — stopping against the wrong side of a symmetric case — which
+   * over 10 turns is exactly 5%. Real gyro scale errors are under 1%.
+   */
+  minScale: 0.95,
+  maxScale: 1.05,
+  /** Off-axis motion ratio at which the "keep it flat" coaching turns on. */
+  offAxisWarnRatio: 0.1,
+  /** Off-axis motion ratio that reads as a lifted or tumbled tracker. */
+  offAxisRejectRatio: 0.25,
+
+  /**
+   * Decimals the value is sent with. The receiver forwards each value as an
+   * int16 of hundredths, so anything finer is lost on the air.
+   */
+  valueDecimals: 2,
+  /** Largest magnitude that int16 of hundredths can carry. */
+  maxValueDeg: 327,
 
   /**
    * Verification spin: residual yaw error per turn, in degrees, at or under
    * which the axis passes. 0.5°/turn ≈ 0.14% remaining scale error.
    */
-  verifyPassDegPerTurn: 0.5,
-
-  /**
-   * The tracker's own progress report (`Sens cal tracker …` on the receiver
-   * console, from the firmware's `sens_cal_report`). It arrives at 2 Hz while
-   * a run is live plus a 10 s linger after the verdict. Once a report has been
-   * seen the flow trusts it over its own timeouts, until it goes quiet for
-   * this long — then the timeout inference takes over again.
-   */
-  reportStaleMs: 3000,
-  /** `scale_q12` divisor: the reported scale is a Q12 fixed-point number. */
-  reportScaleQ12: 4096
+  verifyPassDegPerTurn: 0.5
 }
-
-/**
- * Wire enums of the firmware's sens-cal report (`cal_sens.h`). Values are a
- * contract — the firmware only ever appends, never renumbers.
- */
-export const SENS_CAL_PHASE = {
-  idle: 0,
-  holdStill: 1,
-  bias: 2,
-  armed: 3,
-  recording: 4,
-  done: 5
-} as const
-
-export const SENS_CAL_RESULT = {
-  none: 0,
-  ok: 1,
-  invalidParams: 2,
-  notStill: 3,
-  gyroTimeout: 4,
-  noBiasSamples: 5,
-  noSpin: 6,
-  spinTimeout: 7,
-  angleTooSmall: 8,
-  invalidScale: 9,
-  offAxis: 10,
-  scaleRange: 11,
-  noRetained: 12
-} as const
-
-/** Wire axis codes in the report: `0 = X`, `1 = Y`, `2 = Z`. */
-export const SENS_CAL_REPORT_AXES = ['x', 'y', 'z'] as const
 
 // Receiver console commands used by the sensitivity-calibration flow. Kept
 // beside RECEIVER_SERIAL rather than inside it because these are *tracker*
@@ -299,26 +271,21 @@ export const RECEIVER_CONSOLE = {
   /** A `list` output line: a 12-hex-digit device address on its own. */
   listAddressRegex: /^([0-9A-Fa-f]{12})$/,
   /**
-   * Start a sensitivity calibration on a tracker:
-   * `send <slot> sens auto <axis> <rev>`.
+   * Write a tracker's gyro sensitivity correction: `send <slot> sens <x>,<y>,<z>`,
+   * each value in degrees of difference over `SENS_CAL.firmwareRevolutions`
+   * turns (0 = no correction). The tracker applies it to the next gyro sample
+   * and persists it to flash.
    */
-  sensAutoCmd: (slot: number, axis: string, revolutions: number): string =>
-    `send ${slot} sens auto ${axis} ${revolutions}\n`,
+  sensSetCmd: (slot: number, values: readonly [string, string, string]): string =>
+    `send ${slot} sens ${values.join(',')}\n`,
   /**
-   * Receiver ack — `Sens auto request sent to tracker 0 on z axis for 10 rev`.
-   * Capture groups: slot, axis, revolutions.
+   * Receiver ack — `Sens set (1.20,-0.40,0.00) request sent to tracker 0`.
+   * Capture groups: x, y, z, slot. Only means the command was queued for the
+   * tracker's next radio exchange, so the tracker has to be awake.
    */
-  sensAutoAckRegex: /Sens auto request sent to tracker (\d+) on ([xyz]) axis for (\d+) rev/i,
-  /** Receiver rejections — `Invalid axis 'q'` / `Invalid revolutions '0'`. */
-  sensAutoRejectRegex: /Invalid (axis|revolutions)\s+'([^']*)'/i,
-  /**
-   * The receiver's echo of the tracker's sens-cal report, one line per report:
-   * `Sens cal tracker 0: phase 4 result 0 axis 2 seq 3 scale 0 progress 1234`.
-   * Capture groups: slot, phase, result, axis, seq, scale_q12, progress (deg).
-   * The line carries a log prefix, so nothing is anchored.
-   */
-  sensCalReportRegex:
-    /Sens cal tracker (\d+): phase (\d+) result (\d+) axis (\d+) seq (\d+) scale (\d+) progress (\d+)/i
+  sensSetAckRegex: /Sens set \(([-\d.]+),([-\d.]+),([-\d.]+)\) request sent to tracker (\d+)/i,
+  /** Receiver rejections of the command's arguments. */
+  sensSetRejectRegex: /Invalid float value|Invalid format|Invalid tracker ID/i
 }
 
 // Developer bulk flash — the pin-fixture bootloader programming loop behind

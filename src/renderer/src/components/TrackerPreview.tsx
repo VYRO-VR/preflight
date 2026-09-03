@@ -4,10 +4,14 @@ import {
   ArrowHelper,
   BoxGeometry,
   Color,
+  CylinderGeometry,
   DoubleSide,
   EdgesGeometry,
   Group,
   LineBasicMaterial,
+  LineDashedMaterial,
+  BufferGeometry,
+  Line,
   LineSegments,
   Mesh,
   MeshBasicMaterial,
@@ -20,7 +24,7 @@ import {
   Vector3,
   WebGLRenderer
 } from 'three'
-import type { Quaternion as QuatObject, SensCalAxis } from '@shared/types'
+import type { Quaternion as QuatObject, SensCalPlacement } from '@shared/types'
 
 /**
  * Live 3D orientation preview for one tracker.
@@ -28,40 +32,50 @@ import type { Quaternion as QuatObject, SensCalAxis } from '@shared/types'
  * Derived from SlimeVR-Server's `IMUVisualizerWidget` (gui/src/components/
  * widgets/IMUVisualizerWidget.tsx), MIT licensed — Copyright (c) SlimeVR
  * contributors. The scene layout (camera, lights, wireframe ground plane, RAF
- * render loop) and, importantly, the quaternion handling follow it: a SlimeVR
- * rotation is applied to the model group component-for-component,
- * `group.quaternion.set(x, y, z, w)`, with no axis swap or sign flip. The
- * upstream widget carries its correction on the *model* instead
- * (`modelGroup.rotation.x = π/2`, to stand a Z-up GLTF up in three.js's Y-up
- * world); this file does the same to its box.
+ * render loop) and the quaternion handling follow it: a rotation is applied
+ * to the model group component-for-component, `group.quaternion.set(x, y, z,
+ * w)`, with no axis swap or sign flip.
  *
- * The upstream widget draws a GLTF tracker model plus accel/mag arrows. This
- * one draws a primitive box with body-axis arrows so the flows that need an
- * identity check are not blocked on a VYRO model — swap the box for a GLTF
- * behind this same component API when the asset lands.
+ * What is drawn is the *physical* tracker: a slab lying flat with its button
+ * on top at identity. Fed a raw SlimeVR rotation that means nothing in
+ * particular — the server's mounting and reset fixes put the IMU's frame
+ * wherever they like — so the calibration flow feeds it the pose relative to
+ * a captured "flat, button up" reference instead (`@shared/tracker-frame`),
+ * and then the slab on screen matches the case in the hand. Frame: X along
+ * the long side, Y through the button face, Z along the short side.
  */
 
 const CANVAS_HEIGHT = 200
 const GROUND_COLOR = '#4444aa'
 
-/** Unit vectors for the tracker's own axes, in the model's local frame. */
-const AXIS_VECTORS: Record<SensCalAxis, Vector3> = {
-  x: new Vector3(1, 0, 0),
-  y: new Vector3(0, 1, 0),
-  z: new Vector3(0, 0, 1)
+/** Body directions, in the model's frame. */
+const AXIS_VECTORS = {
+  long: new Vector3(1, 0, 0),
+  up: new Vector3(0, 1, 0),
+  short: new Vector3(0, 0, 1)
+}
+type BodyAxis = keyof typeof AXIS_VECTORS
+
+const AXIS_COLORS: Record<BodyAxis, number> = {
+  long: 0xff5f6d,
+  up: 0x5fe08b,
+  short: 0x6aa8ff
 }
 
-const AXIS_COLORS: Record<SensCalAxis, number> = {
-  x: 0xff5f6d,
-  y: 0x5fe08b,
-  z: 0x6aa8ff
+/** The body direction that stands vertical in each placement. */
+const VERTICAL_AXIS: Record<SensCalPlacement, BodyAxis> = {
+  flat: 'up',
+  'long-edge': 'short',
+  'short-edge': 'long'
 }
 
 interface PreviewContext {
   /** Apply a new orientation. Cheap: no scene rebuild. */
   update: (quat: QuatObject) => void
-  /** Highlight one body axis (the axis a calibration spin is about). */
-  setHighlight: (axis: SensCalAxis | null) => void
+  /** Emphasise the body direction a placement stands vertical. */
+  setHighlight: (placement: SensCalPlacement | null) => void
+  /** Show or hide the world-up spin axis through the model. */
+  setSpinAxis: (visible: boolean) => void
   /** Cancel the RAF loop and release the WebGL context. */
   dispose: () => void
 }
@@ -89,41 +103,60 @@ function createPreview(canvas: HTMLCanvasElement): PreviewContext {
   const trackerGroup = new Group()
   scene.add(trackerGroup)
 
-  // A stand-in for the tracker body: a flat slab, wider than it is tall, with
-  // a highlighted top face so "flat on the desk" vs "on edge" reads at a
-  // glance. `rotation.x = π/2` mirrors the upstream widget's model
-  // correction — the box is modelled Z-up, three.js is Y-up.
-  const modelGroup = new Group()
-  modelGroup.rotation.x = Math.PI / 2
-  trackerGroup.add(modelGroup)
-
-  const bodyGeometry = new BoxGeometry(2.6, 2.0, 0.7)
+  // The case: a slab, long along X, thin along Y, with the button on top so
+  // "flat, button up" is unmistakable and a flipped tracker reads as flipped.
+  const bodyGeometry = new BoxGeometry(2.6, 0.7, 2.0)
   const bodyMaterial = new MeshStandardMaterial({
     color: 0x2b3348,
     roughness: 0.55,
     metalness: 0.1
   })
-  const body = new Mesh(bodyGeometry, bodyMaterial)
-  modelGroup.add(body)
+  trackerGroup.add(new Mesh(bodyGeometry, bodyMaterial))
 
   const edgeGeometry = new EdgesGeometry(bodyGeometry)
   const edgeMaterial = new LineBasicMaterial({ color: 0x8aa0c8 })
-  modelGroup.add(new LineSegments(edgeGeometry, edgeMaterial))
+  trackerGroup.add(new LineSegments(edgeGeometry, edgeMaterial))
 
-  // A marker on the +Z face so rotation about Z is visible, not just implied.
-  const faceGeometry = new PlaneGeometry(1.1, 0.35)
-  const faceMaterial = new MeshBasicMaterial({ color: 0x7c5cff, side: DoubleSide })
-  const face = new Mesh(faceGeometry, faceMaterial)
-  face.position.set(0, 0.55, 0.36)
-  modelGroup.add(face)
+  // The button: off-centre along the long side, so heading is visible too.
+  const buttonGeometry = new CylinderGeometry(0.3, 0.3, 0.14, 24)
+  const buttonMaterial = new MeshStandardMaterial({ color: 0x7c5cff, roughness: 0.4 })
+  const button = new Mesh(buttonGeometry, buttonMaterial)
+  button.position.set(0.7, 0.42, 0)
+  trackerGroup.add(button)
 
-  // Body-axis arrows, drawn in the tracker's own frame so they turn with it.
-  const arrows: Record<SensCalAxis, ArrowHelper> = {
-    x: new ArrowHelper(AXIS_VECTORS.x, new Vector3(0, 0, 0), 2.2, AXIS_COLORS.x),
-    y: new ArrowHelper(AXIS_VECTORS.y, new Vector3(0, 0, 0), 2.2, AXIS_COLORS.y),
-    z: new ArrowHelper(AXIS_VECTORS.z, new Vector3(0, 0, 0), 2.2, AXIS_COLORS.z)
+  // A small pad on the button face's far end, so the two ends differ.
+  const padGeometry = new PlaneGeometry(0.5, 0.25)
+  const padMaterial = new MeshBasicMaterial({ color: 0x5fe08b, side: DoubleSide })
+  const pad = new Mesh(padGeometry, padMaterial)
+  pad.position.set(-0.85, 0.36, 0)
+  pad.rotation.x = -Math.PI / 2
+  trackerGroup.add(pad)
+
+  // Body-direction arrows, drawn in the tracker's own frame so they turn with it.
+  const arrows: Record<BodyAxis, ArrowHelper> = {
+    long: new ArrowHelper(AXIS_VECTORS.long, new Vector3(0, 0, 0), 2.2, AXIS_COLORS.long),
+    up: new ArrowHelper(AXIS_VECTORS.up, new Vector3(0, 0, 0), 2.2, AXIS_COLORS.up),
+    short: new ArrowHelper(AXIS_VECTORS.short, new Vector3(0, 0, 0), 2.2, AXIS_COLORS.short)
   }
-  for (const arrow of Object.values(arrows)) modelGroup.add(arrow)
+  for (const arrow of Object.values(arrows)) trackerGroup.add(arrow)
+
+  // The spin axis: world up through the model, fixed in the scene, so the
+  // user can see the slab turning about it rather than tumbling.
+  const axisGeometry = new BufferGeometry().setFromPoints([
+    new Vector3(0, -3, 0),
+    new Vector3(0, 3.4, 0)
+  ])
+  const axisMaterial = new LineDashedMaterial({
+    color: 0xfbbf24,
+    dashSize: 0.25,
+    gapSize: 0.15,
+    transparent: true,
+    opacity: 0.9
+  })
+  const spinAxis = new Line(axisGeometry, axisMaterial)
+  spinAxis.computeLineDistances()
+  spinAxis.visible = false
+  scene.add(spinAxis)
 
   // Wireframe ground, so the tracker's tilt has something to be tilted against.
   const groundGeometry = new PlaneGeometry(30, 30, 12, 12)
@@ -161,12 +194,17 @@ function createPreview(canvas: HTMLCanvasElement): PreviewContext {
     trackerGroup.quaternion.slerp(target, 0.5)
   }
 
-  const setHighlight = (axis: SensCalAxis | null): void => {
-    for (const key of Object.keys(arrows) as SensCalAxis[]) {
-      const active = axis === null || key === axis
-      arrows[key].setLength(active ? (axis ? 3.2 : 2.2) : 1.4)
+  const setHighlight = (placement: SensCalPlacement | null): void => {
+    const vertical = placement ? VERTICAL_AXIS[placement] : null
+    for (const key of Object.keys(arrows) as BodyAxis[]) {
+      const active = vertical === null || key === vertical
+      arrows[key].setLength(active ? (vertical ? 3.2 : 2.2) : 1.4)
       arrows[key].setColor(new Color(active ? AXIS_COLORS[key] : 0x475069))
     }
+  }
+
+  const setSpinAxis = (visible: boolean): void => {
+    spinAxis.visible = visible
   }
 
   const dispose = (): void => {
@@ -176,8 +214,12 @@ function createPreview(canvas: HTMLCanvasElement): PreviewContext {
     bodyMaterial.dispose()
     edgeGeometry.dispose()
     edgeMaterial.dispose()
-    faceGeometry.dispose()
-    faceMaterial.dispose()
+    buttonGeometry.dispose()
+    buttonMaterial.dispose()
+    padGeometry.dispose()
+    padMaterial.dispose()
+    axisGeometry.dispose()
+    axisMaterial.dispose()
     groundGeometry.dispose()
     groundMaterial.dispose()
     scene.clear()
@@ -186,14 +228,20 @@ function createPreview(canvas: HTMLCanvasElement): PreviewContext {
     renderer.forceContextLoss()
   }
 
-  return { update, setHighlight, dispose }
+  return { update, setHighlight, setSpinAxis, dispose }
 }
 
 interface Props {
-  /** Latest orientation from the live feed; undefined while unknown. */
+  /**
+   * Orientation to show; undefined while unknown. Pass the pose relative to
+   * the captured reference (`trackerPose`) once one exists — a raw SlimeVR
+   * rotation only shows *that* the tracker moves, not how it is lying.
+   */
   rotation?: QuatObject
-  /** Emphasise one body axis (the axis a calibration spin is about). */
-  highlightAxis?: SensCalAxis | null
+  /** Emphasise the body direction this placement stands vertical. */
+  highlightPlacement?: SensCalPlacement | null
+  /** Draw the world-up spin axis through the model. */
+  showSpinAxis?: boolean
   /** Shown in place of the canvas when WebGL is unavailable. */
   fallbackText?: string
 }
@@ -203,7 +251,12 @@ interface Props {
  * WebGL context cannot be created (remote desktop, no GPU) rather than taking
  * the flow down with it.
  */
-export function TrackerPreview({ rotation, highlightAxis = null, fallbackText }: Props) {
+export function TrackerPreview({
+  rotation,
+  highlightPlacement = null,
+  showSpinAxis = false,
+  fallbackText
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const contextRef = useRef<PreviewContext | null>(null)
   const [failed, setFailed] = useState(false)
@@ -228,8 +281,12 @@ export function TrackerPreview({ rotation, highlightAxis = null, fallbackText }:
   }, [rotation])
 
   useEffect(() => {
-    contextRef.current?.setHighlight(highlightAxis)
-  }, [highlightAxis])
+    contextRef.current?.setHighlight(highlightPlacement)
+  }, [highlightPlacement])
+
+  useEffect(() => {
+    contextRef.current?.setSpinAxis(showSpinAxis)
+  }, [showSpinAxis])
 
   if (failed) {
     return (

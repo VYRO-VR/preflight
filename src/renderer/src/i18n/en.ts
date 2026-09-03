@@ -223,7 +223,7 @@ export const en = {
 
   'senscal.title': 'Gyro Sensitivity Calibration',
   'senscal.subtitle':
-    'Measures how accurately a tracker’s gyroscope reports rotation. Every 0.5% of scale error is about 1.8° of yaw drift per full body turn, so this is the single biggest win against drift.',
+    'Measures how accurately a tracker’s gyroscope counts rotation and writes the correction to it. Every 0.5% of scale error is about 1.8° of yaw drift per full body turn, so this is the single biggest win against drift.',
 
   'senscal.connect.searching': 'Looking for the receiver…',
   'senscal.connect.choose': 'Choose the receiver to calibrate through.',
@@ -254,111 +254,106 @@ export const en = {
   'senscal.confirm.yes': 'Yes, that’s the one',
   'senscal.confirm.no': 'No, pick another',
 
-  'senscal.axis.progress': 'Axis {index} of {total}',
-  'senscal.axis.z.title': 'Z axis — flat on the desk',
-  'senscal.axis.z.body': 'Lay the tracker flat on a hard, level surface, label side up.',
-  'senscal.axis.x.title': 'X axis — stood on its long edge',
-  'senscal.axis.x.body': 'Stand the tracker up on its long edge on the same surface.',
-  'senscal.axis.y.title': 'Y axis — stood on its short edge',
-  'senscal.axis.y.body': 'Stand the tracker up on its short edge on the same surface.',
+  'senscal.reference.title': 'Lay it flat, button up',
+  'senscal.reference.body':
+    'Put the tracker flat on a hard, level surface with the button facing up, and leave it alone for a moment. This tells Preflight which way the case is facing — SlimeVR’s orientation alone doesn’t say, which is why the preview never matched the tracker.',
+  'senscal.reference.waiting': 'Waiting for the tracker to hold still…',
+  'senscal.reference.captured':
+    'Got it — the preview now matches the tracker. Pick it up and turn it over to check.',
+  'senscal.reference.retake': 'Capture again',
+  'senscal.reference.continue': 'Continue',
+
+  'senscal.axis.progress': 'Placement {index} of {total} · gyro {axis} axis',
+  'senscal.placement.flat.title': 'Flat, button up',
+  'senscal.placement.flat.body': 'Lay the tracker flat on the surface with the button facing up.',
+  'senscal.placement.long-edge.title': 'Stood on its long edge',
+  'senscal.placement.long-edge.body': 'Stand the tracker up on its long edge on the same surface.',
+  'senscal.placement.short-edge.title': 'Stood on its short edge',
+  'senscal.placement.short-edge.body':
+    'Stand the tracker up on its short edge on the same surface.',
 
   'senscal.place.title': 'Set up the spin',
   'senscal.place.edge':
-    'Butt one flat edge of the tracker against the edge of something heavy — a hardback book or a box. Start and stop the spin with the tracker touching it.',
+    'Butt one flat side of the tracker against the edge of something heavy — a hardback book or a box. Start with the tracker touching it, and finish with it touching the same spot.',
   'senscal.place.why':
-    'That repeatable edge is the accuracy: ±1° over 10 turns is a 0.03% error floor. Eyeballing the start and stop gives ±10°, which is as large as the error being removed.',
+    'That repeatable edge is the accuracy: ±1° over {turns} turns is a 0.03% error floor. Eyeballing the start and stop gives ±10°, as large as the error being removed.',
   'senscal.place.flat':
-    'Slide it flat on the surface the whole way round. Do not lift or tilt it — too much off-axis motion makes the tracker throw the run away.',
-  'senscal.place.practice': 'Try a practice turn',
-  'senscal.place.start': 'Start calibration',
+    'Slide it flat on the surface the whole way round, at whatever pace is comfortable. There is no time limit.',
+  'senscal.place.start': 'Start the spin',
 
-  'senscal.practice.title': 'Practice turn',
-  'senscal.practice.body':
-    'Spin the tracker one full turn at the pace you’ll use. Ten turns have to fit in {budget} seconds, including the careful stop.',
-  'senscal.practice.target': 'Aim for {seconds}s per turn',
-  'senscal.practice.measured': 'Your last turn: {seconds}s',
-  'senscal.practice.good': 'Good pace — that finishes with room to spare.',
-  'senscal.practice.slow': 'Too slow. Ten turns at that pace won’t fit in the budget.',
-  'senscal.practice.waiting': 'Waiting for a full turn…',
-  'senscal.practice.done': 'Done practising',
+  'senscal.reading.flat': 'Lying flat, button up',
+  'senscal.reading.flat-inverted': 'Lying flat, but the button is facing down — flip it over',
+  'senscal.reading.long-edge': 'Stood on its long edge',
+  'senscal.reading.short-edge': 'Stood on its short edge',
+  'senscal.reading.edge': 'Stood on an edge',
+  'senscal.reading.tilted': 'Tilted — rest it fully on the surface',
+  'senscal.reading.none': 'No orientation from the tracker yet',
+  'senscal.reading.ok': 'Placement looks right',
+  'senscal.reading.wrong': 'Not the placement this step needs',
 
-  'senscal.run.turns': '{turns} / {target} turns',
-  'senscal.run.pace': 'Pace target: {pace}',
-  'senscal.run.behind': 'Behind pace — spin a little faster',
-  'senscal.run.timeleft': '{seconds}s left',
-  'senscal.run.offaxis.warn': 'Keep it flat — it’s tilting',
-  'senscal.run.offaxis.reject': 'Too much tilt. Slide it flat on the surface.',
-  'senscal.run.cancel': 'Cancel',
-
-  'senscal.phase.sending': 'Sending the command to the receiver…',
-  'senscal.phase.bias': 'Hold still — the tracker is measuring its gyro bias.',
-  'senscal.phase.ready': 'Spin now — steady turns, flat on the surface.',
-  'senscal.phase.spinning': 'Recording. Keep turning.',
-  'senscal.phase.stopping': 'Stop against the edge and hold still.',
-  'senscal.phase.verdict': 'Hold still — waiting for the tracker to confirm the run…',
-  'senscal.phase.complete': 'Spin accepted.',
-
-  'senscal.fail.title': 'That run didn’t take',
-  'senscal.fail.rejected': 'The receiver rejected the command.',
-  'senscal.fail.noack':
+  'senscal.send.zeroing': 'Clearing the old correction on this axis…',
+  'senscal.send.applying': 'Writing the correction to the tracker…',
+  'senscal.send.fail.title': 'The tracker didn’t get the command',
+  'senscal.send.fail.noack':
     'The receiver didn’t answer. Check it’s still plugged in and not in pairing mode.',
-  'senscal.fail.nospin': 'The tracker never saw a spin start.',
-  'senscal.fail.timeout': 'The spin didn’t finish in time.',
-  'senscal.fail.aborted': 'Calibration cancelled.',
-  'senscal.fail.fw.invalidparams': 'The tracker rejected the request as invalid.',
-  'senscal.fail.fw.notstill': 'The tracker was still moving when the run started.',
-  'senscal.fail.fw.gyrotimeout': 'The tracker stopped getting gyro samples mid-run.',
-  'senscal.fail.fw.nobiassamples': 'The tracker could not measure its gyro bias.',
-  'senscal.fail.fw.nospin': 'The tracker never saw a spin start.',
-  'senscal.fail.fw.spintimeout': 'The tracker gave up waiting for the spin to finish.',
-  'senscal.fail.fw.angletoosmall': 'The tracker measured almost no rotation.',
-  'senscal.fail.fw.invalidscale': 'The tracker computed an invalid scale. Nothing saved.',
-  'senscal.fail.fw.offaxis':
-    'The tracker rejected the run: too much off-axis motion. Nothing saved.',
-  'senscal.fail.fw.scalerange':
-    'The tracker measured {turns} turns for {target} — a scale of {scale} is outside what it will accept. Nothing saved.',
-  'senscal.fail.fw.noretained': 'The tracker could not save the result.',
-  'senscal.fail.fw.unknown': 'The tracker rejected the run (code {code}).',
-  'senscal.fail.cause.offaxis':
-    'Most likely cause: the tracker tilted or lifted. Slide it flat against the surface the whole way round.',
-  'senscal.fail.cause.tooslow':
-    'Most likely cause: the spin was too slow. Spin a little faster next time — ten turns have to fit in {budget} seconds.',
-  'senscal.fail.cause.underspun':
-    'Most likely cause: the tracker never came to a clean stop. Bring it back to the edge and hold it still.',
-  'senscal.fail.cause.miscount':
-    'Most likely cause: the turn count was off. Count exactly ten full turns, starting and stopping at the edge.',
-  'senscal.fail.cause.notstill':
-    'Most likely cause: the tracker was nudged before it asked for the spin. Set it against the edge and keep your hands off until the spin prompt.',
-  'senscal.fail.cause.unknown': 'Try the run again.',
-  'senscal.fail.retry': 'Try this axis again',
-  'senscal.fail.skip': 'Skip this axis',
+  'senscal.send.fail.rejected': 'The receiver rejected the command.',
+  'senscal.send.retry': 'Try again',
+  'senscal.send.back': 'Back',
 
-  'senscal.verify.title': 'Check the result',
+  'senscal.spin.title': 'Spin it {turns} turns',
+  'senscal.spin.body':
+    'Turn the tracker {turns} full turns, sliding flat on the surface, then bring it back against the edge exactly where it started.',
+  'senscal.spin.turns': '{turns} / {target} turns',
+  'senscal.spin.remaining': '{turns} to go',
+  'senscal.spin.ready': 'Back against the edge? Press Done.',
+  'senscal.spin.offaxis.warn': 'Keep it flat — it’s tilting',
+  'senscal.spin.offaxis.reject': 'Too much tilt. Slide it flat on the surface.',
+  'senscal.spin.gap': 'The tracker feed dropped out during the spin. Restart the spin.',
+  'senscal.spin.done': 'Done',
+  'senscal.spin.restart': 'Restart the spin',
+  'senscal.spin.cancel': 'Cancel',
+
+  'senscal.measured.title': 'Measured',
+  'senscal.measured.body':
+    'Over {target} turns the gyro counted {turns} — {pct}% {direction}, or {deg}° per turn.',
+  'senscal.measured.low': 'low',
+  'senscal.measured.high': 'high',
+  'senscal.measured.correction':
+    'Correction to write: {value} on the {axis} axis (a {scale}× scale on the gyro).',
+  'senscal.measured.apply': 'Write it to the tracker',
+  'senscal.measured.again': 'Spin again',
+  'senscal.measured.skip': 'Skip this axis',
+  'senscal.measured.gaps':
+    'The tracker feed dropped samples during the spin, so part of the rotation went uncounted. Spin again — keep the tracker awake and near the receiver.',
+  'senscal.measured.miscount':
+    'That reads as {turns} turns, not {target}. No gyro is that far off, so most likely the count slipped or it didn’t come back to the same spot. Spin again.',
+  'senscal.measured.offaxis':
+    'There was a lot of tilt in that spin. The measurement still counts, but keep it flatter for a cleaner one.',
+
+  'senscal.verify.title': 'Check it took',
   'senscal.verify.body':
-    'Now measure the result: spin exactly {turns} more turns, the same way, then stop against the edge.',
-  'senscal.verify.accepted.title': 'The tracker accepted the run',
-  'senscal.verify.accepted': 'It saved a gyro scale of {scale} — a {pct}% correction.',
-  'senscal.verify.inferred':
-    'This tracker’s firmware does not report a verdict, so this check is the only sign the run took.',
+    'The correction is on the tracker now. To check it, spin exactly {turns} more turns the same way and bring it back to the edge — it should count {turns} exactly.',
   'senscal.verify.start': 'Start the check',
-  'senscal.verify.finish': 'I’ve finished the turns',
+  'senscal.verify.finish': 'I’m back at the edge',
   'senscal.verify.turns': '{turns} turns measured',
   'senscal.verify.pass': 'Passed — {deg}° of drift per turn remaining.',
-  'senscal.verify.fail': 'Still off by {deg}° per turn.',
+  'senscal.verify.fail': 'Still off by {deg}° per turn. Redo this axis if it stays that way.',
   'senscal.verify.miscount':
     'That reads as {turns} turns, not {target}. Most likely the count slipped — run the check again.',
+  'senscal.verify.gap': 'The feed dropped out during the check — run it again.',
   'senscal.verify.skip': 'Skip the check',
 
-  'senscal.result.next': 'Next axis',
+  'senscal.result.next': 'Next placement',
   'senscal.result.rerun': 'Redo this axis',
   'senscal.result.finish': 'Finish',
 
   'senscal.done.title': 'Calibration finished',
-  'senscal.done.body': 'Results per axis:',
+  'senscal.done.body': 'What is now written on the tracker, per gyro axis:',
   'senscal.done.axis': '{axis} axis',
-  'senscal.done.passed': 'Passed',
-  'senscal.done.failed': 'Not calibrated',
-  'senscal.done.skipped': 'Skipped',
+  'senscal.done.applied': 'Correction {value}',
+  'senscal.done.verified': 'Correction {value} · check passed',
+  'senscal.done.unverified': 'Correction {value} · check failed',
+  'senscal.done.skipped': 'Skipped — no correction',
   'senscal.done.close': 'Done',
 
   'senscal.preview.nowebgl': '3D preview unavailable on this display.',
