@@ -202,7 +202,8 @@ export const en = {
     'The receiver didn’t appear as a drive. Make sure it entered update mode and try again.',
   'fwupdate.progress.dfu': 'Putting the receiver into update mode…',
   'fwupdate.progress.drive': 'Waiting for the receiver to appear as a drive…',
-  'fwupdate.progress.nrfutil': 'Flashing with nrfutil…',
+  'fwupdate.progress.nrfutil':
+    'Updating over USB — waiting for the receiver can take up to a minute…',
 
   'links.discord': 'VYRO VR Discord',
   'links.slimevrDiscord': 'SlimeVR Discord',

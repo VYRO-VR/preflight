@@ -132,10 +132,17 @@ export async function ensureDeviceCommand(bin: string): Promise<{ ok: boolean; m
 }
 
 // After the receiver's `dfu` console command, the bootloader takes a moment to
-// re-enumerate on USB — programming immediately races it. Retry a failed
-// program a few times so slow enumeration doesn't surface as a user error.
-const PROGRAM_ATTEMPTS = 4
+// re-enumerate on USB — and on Windows, first-time driver binding for the DFU
+// device can take tens of seconds. Keep retrying while nrfutil reports "no
+// devices" (the same 40s budget the UF2 drive path gets); any other error
+// fails fast.
+const PROGRAM_TIMEOUT_MS = 40_000
 const PROGRAM_RETRY_DELAY_MS = 2500
+
+/** nrfutil's report when no device in DFU mode is attached (yet). */
+export function isNoDeviceError(message: string): boolean {
+  return /no devices? (with requested|found)/i.test(message)
+}
 
 export async function programDfuPackage(opts: ProgramDfuOptions): Promise<FlashResult> {
   const bin = await resolveNrfutil()
@@ -147,19 +154,26 @@ export async function programDfuPackage(opts: ProgramDfuOptions): Promise<FlashR
     return { ok: false, message: device.message ?? 'nrfutil device command unavailable.' }
   }
 
-  let lastError = ''
-  for (let attempt = 1; attempt <= PROGRAM_ATTEMPTS; attempt++) {
+  const deadline = Date.now() + PROGRAM_TIMEOUT_MS
+  for (;;) {
     const { code, stdout, stderr } = await runNrfutil(bin, buildProgramArgs(opts))
     if (code === 0) {
       return { ok: true, message: 'Receiver firmware updated successfully.' }
     }
     // nrfutil reports errors on stderr or stdout depending on version.
-    lastError = (stderr.trim() || stdout.trim() || `nrfutil exited with code ${code}.`).trim()
-    if (attempt < PROGRAM_ATTEMPTS) {
-      await new Promise((r) => setTimeout(r, PROGRAM_RETRY_DELAY_MS))
+    const error = (stderr.trim() || stdout.trim() || `nrfutil exited with code ${code}.`).trim()
+    if (!isNoDeviceError(error)) {
+      return { ok: false, message: error }
     }
+    if (Date.now() >= deadline) {
+      return {
+        ok: false,
+        message:
+          'The receiver never showed up in update mode. Unplug it, plug it back in, and run the update again. If this keeps happening, its current firmware may be too old to enter update mode automatically.'
+      }
+    }
+    await new Promise((r) => setTimeout(r, PROGRAM_RETRY_DELAY_MS))
   }
-  return { ok: false, message: lastError }
 }
 
 export interface NrfutilRunResult {
