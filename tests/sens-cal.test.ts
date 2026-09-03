@@ -197,8 +197,8 @@ describe('turn accumulator', () => {
   it('bridges a mid-spin stall by predicting the rotation from the spin rate', () => {
     // 1 turn/s, then the feed goes quiet for 700 ms while the spin carries on:
     // 252° of real rotation, which the shortest arc would read as -108°.
-    let { acc, endMs } = spin({ totalDeg: 1080, dps: 360 })
-    acc = pushRotation(acc, yaw(1080 + 252), endMs + 700)
+    const { acc: spun, endMs } = spin({ totalDeg: 1080, dps: 360 })
+    const acc = pushRotation(spun, yaw(1080 + 252), endMs + 700)
     expect(acc.totalDeg).toBeCloseTo(1332, 3)
     expect(acc.gaps).toBe(0)
     // And the count carries on correctly afterwards.
@@ -214,15 +214,15 @@ describe('turn accumulator', () => {
   })
 
   it('bridges a stall of more than a whole turn when the rate predicts it', () => {
-    let { acc, endMs } = spin({ totalDeg: 1080, dps: 360 })
-    acc = pushRotation(acc, yaw(1080 + 400), endMs + 1100) // 400° in 1.1 s
+    const { acc: spun, endMs } = spin({ totalDeg: 1080, dps: 360 })
+    const acc = pushRotation(spun, yaw(1080 + 400), endMs + 1100) // 400° in 1.1 s
     expect(acc.totalDeg).toBeCloseTo(1480, 3)
     expect(acc.gaps).toBe(0)
   })
 
   it('gives up on a stall too long to bridge', () => {
-    let { acc, endMs } = spin({ totalDeg: 1080, dps: 360 })
-    acc = pushRotation(acc, yaw(1080 + 100), endMs + 2000)
+    const { acc: spun, endMs } = spin({ totalDeg: 1080, dps: 360 })
+    const acc = pushRotation(spun, yaw(1080 + 100), endMs + 2000)
     expect(acc.gaps).toBe(1)
     expect(acc.totalDeg).toBeCloseTo(1080, 3)
   })
@@ -248,9 +248,9 @@ describe('turn accumulator', () => {
   })
 
   it('rejects a jump the spin cannot explain, such as a reset in SlimeVR', () => {
-    let { acc, endMs } = spin({ totalDeg: 1080, dps: 360 })
+    const { acc: spun, endMs } = spin({ totalDeg: 1080, dps: 360 })
     // Expected ~11° in 30 ms; a 170° jump is neither that nor a whole turn off.
-    acc = pushRotation(acc, yaw(1080 + 170), endMs + 30)
+    const acc = pushRotation(spun, yaw(1080 + 170), endMs + 30)
     expect(acc.gaps).toBe(1)
     expect(acc.totalDeg).toBeCloseTo(1080, 3)
   })
