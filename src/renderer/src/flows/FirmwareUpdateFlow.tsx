@@ -17,6 +17,7 @@ import { Button } from '../components/Button'
 import { StatusBadge } from '../components/StatusBadge'
 import { CheckRow } from '../components/CheckRow'
 import { FirmwarePicker } from '../components/FirmwarePicker'
+import { playFlashOutcome } from '../sound'
 
 type ReceiverPhase =
   | 'connecting'
@@ -150,6 +151,7 @@ export function FirmwareUpdateFlow({ onExit }: { onExit: () => void }) {
     }
     setResult(res)
     setPhase('result')
+    void playFlashOutcome(res.ok ? 'success' : 'failure')
   }
 
   const flashTracker = async (drive: string): Promise<void> => {
@@ -163,6 +165,7 @@ export function FirmwareUpdateFlow({ onExit }: { onExit: () => void }) {
     })
     setTrackerResult(res)
     setTrackerFlashing(false)
+    void playFlashOutcome(res.ok ? 'success' : 'failure')
   }
 
   const open = (url: string): void => void window.api.docs.openExternal(url)

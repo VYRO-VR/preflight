@@ -50,7 +50,9 @@ function createWindow(splash?: BrowserWindow): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // The bulk-flash loop plays a sound per board without a click each time.
+      autoplayPolicy: 'no-user-gesture-required'
     }
   })
 

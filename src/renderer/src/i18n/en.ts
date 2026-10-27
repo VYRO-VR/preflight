@@ -368,6 +368,7 @@ export const en = {
   'dev.bulkflash.title': 'Bulk Flash',
   'dev.bulkflash.body':
     'Flashes the bundled bootloader and firmware onto Mochi trackers or Fox Dongle receivers over the J-Link pin fixture. Press the pins onto a board, wait for the OK, lift it off, and repeat — the loop re-arms for each next board automatically.',
+  'dev.sounds': 'Play a sound when a flash finishes (chime on success, scream on failure)',
   'dev.target.label': 'Board',
   'dev.target.mochi': 'Mochi tracker',
   'dev.target.foxdongle': 'Fox Dongle',

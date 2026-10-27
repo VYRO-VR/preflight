@@ -5,6 +5,7 @@ import { useAppStore } from '../store/useAppStore'
 import { StepShell } from '../components/StepShell'
 import { Button } from '../components/Button'
 import { FirmwarePicker } from '../components/FirmwarePicker'
+import { playFlashOutcome } from '../sound'
 
 const dfuPresses = DFU_PRESSES
 
@@ -55,6 +56,7 @@ export function FirmwareStep() {
     })
     setResult(res)
     setFlashing(false)
+    void playFlashOutcome(res.ok ? 'success' : 'failure')
   }
 
   return (
