@@ -9,7 +9,7 @@ const log = (code: Extract<BulkFlashEvent, { type: 'log' }>['code']): BulkFlashE
 })
 
 describe('bulkFlashEventOutcome', () => {
-  it('chimes for every board flashed', () => {
+  it('plays the success sound for every board flashed', () => {
     expect(bulkFlashEventOutcome({ type: 'flashed', count: 3, elapsedMs: 900 })).toBe('success')
   })
 

@@ -380,7 +380,7 @@ export interface AppSettings {
   selectedProduct: ProductId | null
   telemetryEnabled: boolean
   completedFirstRun: boolean
-  /** Success chime / Wilhelm scream when a flash finishes. */
+  /** Success jingle / Wilhelm scream when a flash finishes. */
   flashSounds: boolean
 }
 

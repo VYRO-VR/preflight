@@ -1,19 +1,19 @@
 import type { FlashOutcome } from '@shared/flash-outcome'
+import successUrl from './assets/sounds/success.mp3'
 import wilhelmUrl from './assets/sounds/wilhelm-scream.ogg'
 
 /**
- * Flash result sounds: a soft two-note chime on success (synthesised, no
- * asset) and the Wilhelm scream on failure. Every call is best-effort — an
- * audio hiccup must never break a flash flow — and honours the persisted
- * `flashSounds` setting.
+ * Flash result sounds: a short success jingle and the Wilhelm scream on
+ * failure. Every call is best-effort — an audio hiccup must never break a
+ * flash flow — and honours the persisted `flashSounds` setting.
  */
 
-const CHIME_VOLUME = 0.07
+const SUCCESS_VOLUME = 0.7
 const SCREAM_VOLUME = 0.6
 
 let enabled = true
 let loaded = false
-let ctx: AudioContext | null = null
+let success: HTMLAudioElement | null = null
 let scream: HTMLAudioElement | null = null
 
 async function ensureLoaded(): Promise<void> {
@@ -37,31 +37,11 @@ export async function setFlashSoundsEnabled(value: boolean): Promise<void> {
   await window.api.settings.set({ flashSounds: value })
 }
 
-function chime(): void {
-  ctx ??= new AudioContext()
-  const start = ctx.currentTime + 0.01
-  // A rising major third (E5 → G#5), each note a short sine with a fast
-  // attack and exponential decay so it stays gentle.
-  ;[659.25, 830.61].forEach((freq, i) => {
-    const osc = ctx!.createOscillator()
-    const gain = ctx!.createGain()
-    const t0 = start + i * 0.12
-    osc.type = 'sine'
-    osc.frequency.value = freq
-    gain.gain.setValueAtTime(0.0001, t0)
-    gain.gain.exponentialRampToValueAtTime(CHIME_VOLUME, t0 + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45)
-    osc.connect(gain).connect(ctx!.destination)
-    osc.start(t0)
-    osc.stop(t0 + 0.5)
-  })
-}
-
-function wilhelm(): void {
-  scream ??= new Audio(wilhelmUrl)
-  scream.volume = SCREAM_VOLUME
-  scream.currentTime = 0
-  void scream.play()
+function play(audio: HTMLAudioElement, volume: number): void {
+  audio.volume = volume
+  audio.currentTime = 0
+  // play() rejects when autoplay is refused or there is no output device.
+  audio.play().catch(() => undefined)
 }
 
 /** Plays the sound for a finished flash. Never throws. */
@@ -69,8 +49,8 @@ export async function playFlashOutcome(outcome: FlashOutcome): Promise<void> {
   try {
     await ensureLoaded()
     if (!enabled) return
-    if (outcome === 'success') chime()
-    else wilhelm()
+    if (outcome === 'success') play((success ??= new Audio(successUrl)), SUCCESS_VOLUME)
+    else play((scream ??= new Audio(wilhelmUrl)), SCREAM_VOLUME)
   } catch {
     // no audio device / autoplay refused — silent is fine
   }
