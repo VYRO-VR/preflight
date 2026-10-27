@@ -5,6 +5,8 @@ import { useAppStore } from '../store/useAppStore'
 import { FlowShell } from '../components/FlowShell'
 import { Button } from '../components/Button'
 import { StatusBadge } from '../components/StatusBadge'
+import { bulkFlashEventOutcome } from '@shared/flash-outcome'
+import { flashSoundsEnabled, playFlashOutcome, setFlashSoundsEnabled } from '../sound'
 
 type LogLevel = 'info' | 'success' | 'error'
 
@@ -78,6 +80,7 @@ export function DevFlow({ onExit }: { onExit: () => void }) {
   const [count, setCount] = useState(0)
   const [running, setRunning] = useState(false)
   const [target, setTarget] = useState<BulkFlashTarget>('mochi')
+  const [sounds, setSounds] = useState(true)
   const [log, setLog] = useState<LogEntry[]>([])
   const logRef = useRef<HTMLPreElement>(null)
 
@@ -88,7 +91,10 @@ export function DevFlow({ onExit }: { onExit: () => void }) {
           -MAX_LOG_ENTRIES
         )
       )
+    void flashSoundsEnabled().then(setSounds)
     const off = window.api.dev.onBulkFlashEvent((event) => {
+      const outcome = bulkFlashEventOutcome(event)
+      if (outcome) void playFlashOutcome(outcome)
       if (event.type === 'phase') {
         setPhase(event.phase)
       } else if (event.type === 'log') {
@@ -161,6 +167,18 @@ export function DevFlow({ onExit }: { onExit: () => void }) {
             ))}
           </div>
         </div>
+
+        <label className="flex items-center gap-2 text-xs text-slate-400">
+          <input
+            type="checkbox"
+            checked={sounds}
+            onChange={(e) => {
+              setSounds(e.target.checked)
+              void setFlashSoundsEnabled(e.target.checked)
+            }}
+          />
+          {t('dev.sounds')}
+        </label>
 
         <div className="flex items-center gap-3">
           {running ? (

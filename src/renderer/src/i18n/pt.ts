@@ -320,6 +320,8 @@ export const pt: Record<string, string> = {
   'dev.bulkflash.title': 'Gravação em Massa',
   'dev.bulkflash.body':
     'Grava o bootloader e o firmware incluídos nos rastreadores Mochi ou nos receptores Fox Dongle pela fixação de pinos com J-Link. Pressione os pinos na placa, aguarde o OK, levante e repita — o ciclo se rearma automaticamente para a próxima placa.',
+  'dev.sounds':
+    'Tocar um som quando a gravação terminar (sino em caso de sucesso, grito em caso de falha)',
   'dev.target.label': 'Placa',
   'dev.target.mochi': 'Rastreador Mochi',
   'dev.target.foxdongle': 'Fox Dongle',

@@ -5,7 +5,8 @@ const defaults: AppSettings = {
   locale: 'en',
   selectedProduct: null,
   telemetryEnabled: false,
-  completedFirstRun: false
+  completedFirstRun: false,
+  flashSounds: true
 }
 
 const store = new Store<AppSettings>({ name: 'settings', defaults })
@@ -15,7 +16,8 @@ export function getSettings(): AppSettings {
     locale: store.get('locale'),
     selectedProduct: store.get('selectedProduct'),
     telemetryEnabled: store.get('telemetryEnabled'),
-    completedFirstRun: store.get('completedFirstRun')
+    completedFirstRun: store.get('completedFirstRun'),
+    flashSounds: store.get('flashSounds')
   }
 }
 

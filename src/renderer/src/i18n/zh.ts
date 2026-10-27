@@ -347,6 +347,7 @@ export const zh: Record<string, string> = {
   'dev.bulkflash.title': '批量刷写',
   'dev.bulkflash.body':
     '通过 J-Link 针脚夹具将捆绑的引导程序和固件刷写到 Mochi 追踪器或 Fox Dongle 接收器上。将针脚压到主板上，等待 OK，取下主板并重复——循环会自动为下一块主板重新就绪。',
+  'dev.sounds': '刷写结束时播放提示音（成功为铃声，失败为尖叫）',
   'dev.target.label': '主板',
   'dev.target.mochi': 'Mochi 追踪器',
   'dev.target.foxdongle': 'Fox Dongle',
