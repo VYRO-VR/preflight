@@ -4,6 +4,7 @@ import type {
   SlimeVrLiveState,
   AppSettings,
   BulkFlashEvent,
+  BulkFlashTarget,
   FlashRequest,
   PairingEvent,
   ReceiverConsoleEvent,
@@ -86,7 +87,7 @@ const api: Api = {
     }
   },
   dev: {
-    bulkFlashStart: () => ipcRenderer.invoke('dev:bulk-flash-start'),
+    bulkFlashStart: (target: BulkFlashTarget) => ipcRenderer.invoke('dev:bulk-flash-start', target),
     bulkFlashStop: () => ipcRenderer.invoke('dev:bulk-flash-stop'),
     onBulkFlashEvent: (cb: (event: BulkFlashEvent) => void) => {
       const listener = (_e: unknown, event: BulkFlashEvent) => cb(event)

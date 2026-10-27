@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { BulkFlashLogCode, BulkFlashPhase, CheckStatus } from '@shared/types'
+import type { BulkFlashLogCode, BulkFlashPhase, BulkFlashTarget, CheckStatus } from '@shared/types'
 import type { TranslationKey } from '../i18n'
 import { useAppStore } from '../store/useAppStore'
 import { FlowShell } from '../components/FlowShell'
@@ -57,6 +57,13 @@ const PHASE_STATUS: Record<BulkFlashPhase, CheckStatus> = {
   remove: 'warn'
 }
 
+const TARGET_KEY: Record<BulkFlashTarget, TranslationKey> = {
+  mochi: 'dev.target.mochi',
+  'fox-dongle': 'dev.target.foxdongle'
+}
+
+const TARGETS = Object.keys(TARGET_KEY) as BulkFlashTarget[]
+
 const LEVEL_CLASS: Record<LogLevel, string> = {
   info: 'text-slate-400',
   success: 'text-emerald-300',
@@ -70,6 +77,7 @@ export function DevFlow({ onExit }: { onExit: () => void }) {
   const [phase, setPhase] = useState<BulkFlashPhase>('idle')
   const [count, setCount] = useState(0)
   const [running, setRunning] = useState(false)
+  const [target, setTarget] = useState<BulkFlashTarget>('mochi')
   const [log, setLog] = useState<LogEntry[]>([])
   const logRef = useRef<HTMLPreElement>(null)
 
@@ -115,7 +123,7 @@ export function DevFlow({ onExit }: { onExit: () => void }) {
     setLog([])
     setCount(0)
     setRunning(true)
-    void window.api.dev.bulkFlashStart()
+    void window.api.dev.bulkFlashStart(target)
   }
 
   const exit = async (): Promise<void> => {
@@ -135,6 +143,22 @@ export function DevFlow({ onExit }: { onExit: () => void }) {
           <div className="flex items-baseline gap-2 pl-4">
             <span className="text-4xl font-semibold tabular-nums text-emerald-400">{count}</span>
             <span className="text-xs text-slate-400">{t('dev.bulkflash.count')}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400">{t('dev.target.label')}</span>
+          <div className="flex gap-1">
+            {TARGETS.map((id) => (
+              <Button
+                key={id}
+                variant={id === target ? 'primary' : 'secondary'}
+                disabled={running}
+                onClick={() => setTarget(id)}
+              >
+                {t(TARGET_KEY[id])}
+              </Button>
+            ))}
           </div>
         </div>
 

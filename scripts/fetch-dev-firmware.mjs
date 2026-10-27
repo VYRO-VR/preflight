@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// Downloads the latest combined Mochi bootloader + application hex from the
-// VYRO-VR/Firmware GitHub releases into resources/dev-firmware/, where the
-// hidden developer bulk-flash panel (BULK_FLASH in src/shared/config.ts) and
-// electron-builder pick it up. Run before packaging: `npm run fetch:dev-firmware`.
+// Downloads the latest combined bootloader + application hex for every board
+// the developer bulk-flash panel supports (BULK_FLASH.targets in
+// src/shared/config.ts) from the VYRO-VR/Firmware GitHub releases into
+// resources/dev-firmware/, where the panel and electron-builder pick them up.
+// Run before packaging: `npm run fetch:dev-firmware`.
 //
-// The hex committed in the repo is the fallback. By default a failed fetch
-// warns and leaves it in place; with --strict (or FETCH_DEV_FIRMWARE_STRICT=1)
-// it exits non-zero instead, so a release can't silently ship a stale image.
+// A hex already in the folder (the committed Mochi one) is the fallback. By
+// default a failed fetch warns and leaves it in place; with --strict (or
+// FETCH_DEV_FIRMWARE_STRICT=1) any failure exits non-zero instead, so a release
+// can't silently ship a stale or missing image.
 
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -15,8 +17,6 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const strict = process.argv.includes('--strict') || process.env.FETCH_DEV_FIRMWARE_STRICT === '1'
 
-/** Release asset published by the Firmware CI: VVR_Combined_Tracker_Mochi_<commit>.hex */
-const ASSET_PATTERN = /^VVR_Combined_Tracker_Mochi_.+\.hex$/i
 const MIN_BYTES = 100 * 1024
 const ATTEMPTS = 3
 
@@ -24,27 +24,44 @@ async function main() {
   const config = await fs.readFile(path.join(root, 'src/shared/config.ts'), 'utf8')
   const repo = /FIRMWARE_REPO\s*=\s*\{\s*owner:\s*'([^']+)',\s*repo:\s*'([^']+)'\s*\}/.exec(config)
   const dir = /hexResourceDir:\s*'([^']+)'/.exec(config)
-  const file = /hexFileName:\s*'([^']+)'/.exec(config)
-  if (!repo || !dir || !file) throw new Error('could not read FIRMWARE_REPO / BULK_FLASH from src/shared/config.ts')
+  // One entry per board, written as `hexFileName: '…',\n assetPrefix: '…'`.
+  const targets = [...config.matchAll(/hexFileName:\s*'([^']+)',\s*assetPrefix:\s*'([^']+)'/g)].map(
+    (m) => ({ file: m[1], prefix: m[2] })
+  )
+  if (!repo || !dir || targets.length === 0) {
+    throw new Error('could not read FIRMWARE_REPO / BULK_FLASH from src/shared/config.ts')
+  }
 
-  const dest = path.join(root, 'resources', dir[1], file[1])
-  const { release, asset } = await findAsset(repo[1], repo[2])
-  console.log(`Using ${asset.name} from ${repo[1]}/${repo[2]} ${release.tag_name}`)
-
-  const hex = await withRetry(() => download(asset.browser_download_url))
-  validateHex(hex)
-
-  await fs.mkdir(path.dirname(dest), { recursive: true })
-  await fs.writeFile(dest, hex)
-  console.log(`Wrote ${path.relative(root, dest)} (${hex.length} bytes)`)
+  const releases = await listReleases(repo[1], repo[2])
+  let failed = 0
+  for (const target of targets) {
+    try {
+      const { release, asset } = findAsset(releases, target.prefix, `${repo[1]}/${repo[2]}`)
+      console.log(`${target.file}: using ${asset.name} from ${release.tag_name}`)
+      const hex = await withRetry(() => download(asset.browser_download_url))
+      validateHex(hex)
+      const dest = path.join(root, 'resources', dir[1], target.file)
+      await fs.mkdir(path.dirname(dest), { recursive: true })
+      await fs.writeFile(dest, hex)
+      console.log(`${target.file}: wrote ${path.relative(root, dest)} (${hex.length} bytes)`)
+    } catch (err) {
+      failed++
+      console.warn(`${target.file}: ${err.message}`)
+    }
+  }
+  if (failed > 0) {
+    throw new Error(`${failed} of ${targets.length} images could not be fetched`)
+  }
 }
 
-/** Newest non-draft release (stable preferred over prerelease) that has the asset. */
-async function findAsset(owner, name) {
-  const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'preflight-fetch-dev-firmware' }
+async function listReleases(owner, name) {
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'preflight-fetch-dev-firmware'
+  }
   if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
   const url = `https://api.github.com/repos/${owner}/${name}/releases?per_page=20`
-  const releases = await withRetry(async () => {
+  return withRetry(async () => {
     let res = await fetch(url, { headers })
     // The repo is public: a token that can't read it (wrong scope, expired)
     // shouldn't block an anonymous request.
@@ -55,18 +72,27 @@ async function findAsset(owner, name) {
     if (!res.ok) throw new Error(`releases API returned HTTP ${res.status}`)
     return res.json()
   })
+}
+
+/** Newest non-draft release (stable preferred over prerelease) with a `<prefix>*.hex` asset. */
+function findAsset(releases, prefix, repoName) {
   const candidates = releases.filter((r) => !r.draft)
   for (const wantPrerelease of [false, true]) {
     for (const release of candidates.filter((r) => r.prerelease === wantPrerelease)) {
-      const asset = (release.assets ?? []).find((a) => ASSET_PATTERN.test(a.name))
+      const asset = (release.assets ?? []).find(
+        (a) => a.name.startsWith(prefix) && a.name.toLowerCase().endsWith('.hex')
+      )
       if (asset) return { release, asset }
     }
   }
-  throw new Error(`no release of ${owner}/${name} has an asset matching ${ASSET_PATTERN}`)
+  throw new Error(`no release of ${repoName} has a ${prefix}*.hex asset`)
 }
 
 async function download(url) {
-  const res = await fetch(url, { headers: { 'User-Agent': 'preflight-fetch-dev-firmware' }, redirect: 'follow' })
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'preflight-fetch-dev-firmware' },
+    redirect: 'follow'
+  })
   if (!res.ok) throw new Error(`download returned HTTP ${res.status}`)
   return Buffer.from(await res.arrayBuffer())
 }
@@ -77,7 +103,8 @@ function validateHex(buf) {
   const lines = text.split(/\r?\n/).filter(Boolean)
   if (buf.length < MIN_BYTES) throw new Error(`hex is only ${buf.length} bytes`)
   if (!lines.every((l) => /^:[0-9A-Fa-f]+$/.test(l))) throw new Error('file is not Intel HEX')
-  if (lines[lines.length - 1].toUpperCase() !== ':00000001FF') throw new Error('hex has no end-of-file record')
+  if (lines[lines.length - 1].toUpperCase() !== ':00000001FF')
+    throw new Error('hex has no end-of-file record')
 }
 
 async function withRetry(fn) {

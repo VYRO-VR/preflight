@@ -14,6 +14,7 @@ import { BULK_FLASH } from '../src/shared/config'
 import type { BulkFlashEvent } from '../src/shared/types'
 
 const HEX = '/bundle/dev-firmware/Mochi_Tracker_Combined.hex'
+const FOX_HEX = '/bundle/dev-firmware/FoxDongle_Receiver_Combined.hex'
 
 const ok: NrfutilRunResult = { code: 0, stdout: '', stderr: '' }
 const fail: NrfutilRunResult = { code: 1, stdout: '', stderr: '' }
@@ -136,7 +137,7 @@ function harness(script: NrfutilRunResult[], overrides: Partial<BulkFlashDeps> =
     now: () => 0,
     ...overrides
   }
-  const session = new BulkFlashSession(HEX, deps)
+  const session = new BulkFlashSession({ mochi: HEX, 'fox-dongle': FOX_HEX }, deps)
   const events: BulkFlashEvent[] = []
   session.on('event', (e) => events.push(e))
   return { session, events, calls, sleeps }
@@ -152,7 +153,7 @@ describe('BulkFlashSession', () => {
     // fast fail + probe fail (idle) → fast ok (flashed) → remove: ok, ok, fail
     // (removed) → next idle cycle blocks on exec #7.
     const h = harness([fail, fail, ok, ok, ok, fail])
-    h.session.start()
+    h.session.start('mochi')
     await settled(h, 7)
     await h.session.stop()
 
@@ -179,7 +180,7 @@ describe('BulkFlashSession', () => {
 
   it('the quiet attempt and the probe use the expected commands', async () => {
     const h = harness([fail, fail, ok])
-    h.session.start()
+    h.session.start('mochi')
     await settled(h, 3)
     await h.session.stop()
 
@@ -194,7 +195,7 @@ describe('BulkFlashSession', () => {
   it('recovers a protected chip, then programs with verification', async () => {
     // fast fail (protection visible) → recover ok → verified program ok.
     const h = harness([protectedFail, ok, ok])
-    h.session.start()
+    h.session.start('mochi')
     await vi.waitFor(() => expect(h.events.some((e) => e.type === 'flashed')).toBe(true))
     await h.session.stop()
 
@@ -220,7 +221,7 @@ describe('BulkFlashSession', () => {
     // fast fail (silent) → probe fail with protection text → recover ok →
     // verified program ok.
     const h = harness([fail, protectedFail, ok, ok])
-    h.session.start()
+    h.session.start('mochi')
     await vi.waitFor(() => expect(h.events.some((e) => e.type === 'flashed')).toBe(true))
     await h.session.stop()
 
@@ -232,7 +233,7 @@ describe('BulkFlashSession', () => {
     const recoverFail: NrfutilRunResult = { code: 1, stdout: '', stderr: 'recover exploded' }
     // fast fail (protected) → recover fails → back to waiting → fast ok.
     const h = harness([protectedFail, recoverFail, ok])
-    h.session.start()
+    h.session.start('mochi')
     await vi.waitFor(() => expect(h.events.some((e) => e.type === 'flashed')).toBe(true))
     await h.session.stop()
 
@@ -248,7 +249,7 @@ describe('BulkFlashSession', () => {
   it('counts a board that lands between the quiet attempt and the probe', async () => {
     // fast fail (silent) → probe succeeds: already programmed, count it once.
     const h = harness([fail, ok])
-    h.session.start()
+    h.session.start('mochi')
     await vi.waitFor(() => expect(h.events.some((e) => e.type === 'flashed')).toBe(true))
     await h.session.stop()
     const flashed = h.events.filter((e) => e.type === 'flashed')
@@ -257,7 +258,7 @@ describe('BulkFlashSession', () => {
 
   it('stop aborts an in-flight attempt and reports the tally', async () => {
     const h = harness([fail, fail, ok, ok]) // flash one, then block in removal wait
-    h.session.start()
+    h.session.start('mochi')
     await settled(h, 5)
     await h.session.stop()
 
@@ -267,7 +268,7 @@ describe('BulkFlashSession', () => {
 
   it('reports a missing nrfutil and ends the session', async () => {
     const h = harness([], { resolveBin: () => Promise.resolve(null) })
-    h.session.start()
+    h.session.start('mochi')
     await vi.waitFor(() => expect(h.events.some((e) => e.type === 'stopped')).toBe(true))
     expect(h.events).toContainEqual({
       type: 'log',
@@ -278,16 +279,43 @@ describe('BulkFlashSession', () => {
     expect(h.calls).toEqual([])
   })
 
+  it('programs the image for the chosen board type', async () => {
+    const mochi = harness([ok])
+    mochi.session.start('mochi')
+    await settled(mochi, 1)
+    await mochi.session.stop()
+    expect(mochi.calls[0]).toContain(HEX)
+
+    const fox = harness([ok])
+    fox.session.start('fox-dongle')
+    await settled(fox, 1)
+    await fox.session.stop()
+    expect(fox.calls[0]).toContain(FOX_HEX)
+    expect(fox.calls[0]).not.toContain(HEX)
+  })
+
+  it('names the hex for the chosen board type when it is missing', async () => {
+    const h = harness([], { hexExists: () => Promise.resolve(false) })
+    h.session.start('fox-dongle')
+    await vi.waitFor(() => expect(h.events.some((e) => e.type === 'stopped')).toBe(true))
+    expect(h.events).toContainEqual({
+      type: 'log',
+      level: 'error',
+      code: 'hex-missing',
+      detail: FOX_HEX
+    })
+  })
+
   it('reports a missing hex and a missing device plugin', async () => {
     const noHex = harness([], { hexExists: () => Promise.resolve(false) })
-    noHex.session.start()
+    noHex.session.start('mochi')
     await vi.waitFor(() => expect(noHex.events.some((e) => e.type === 'stopped')).toBe(true))
     expect(noHex.events.some((e) => e.type === 'log' && e.code === 'hex-missing')).toBe(true)
 
     const noPlugin = harness([], {
       ensureDevice: () => Promise.resolve({ ok: false, message: 'no internet' })
     })
-    noPlugin.session.start()
+    noPlugin.session.start('mochi')
     await vi.waitFor(() => expect(noPlugin.events.some((e) => e.type === 'stopped')).toBe(true))
     expect(noPlugin.events).toContainEqual({
       type: 'log',
@@ -299,8 +327,8 @@ describe('BulkFlashSession', () => {
 
   it('start is idempotent while running', async () => {
     const h = harness([])
-    h.session.start()
-    h.session.start()
+    h.session.start('mochi')
+    h.session.start('mochi')
     await settled(h, 1)
     await h.session.stop()
     expect(h.events.filter((e) => e.type === 'phase' && e.phase === 'setup')).toHaveLength(1)
@@ -317,7 +345,7 @@ describe('BulkFlashSession', () => {
         return clock
       }
     })
-    h.session.start()
+    h.session.start('mochi')
     await vi.waitFor(() => expect(h.events.some((e) => e.type === 'flashed')).toBe(true))
     await h.session.stop()
     expect(h.events.filter((e) => e.type === 'log' && e.code === 'stuck-hint')).toHaveLength(1)

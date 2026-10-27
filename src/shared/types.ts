@@ -321,6 +321,9 @@ export interface FlashResult {
 // Developer bulk flash (pin-fixture bootloader programming over J-Link)
 // ---------------------------------------------------------------------------
 
+/** Boards the developer panel can bulk-flash (keys of BULK_FLASH.targets). */
+export type BulkFlashTarget = 'mochi' | 'fox-dongle'
+
 /** Where the bulk-flash loop currently is. Drives the panel's status line. */
 export type BulkFlashPhase =
   | 'idle'
@@ -469,8 +472,8 @@ export interface Api {
     onUpdateStatus: (cb: (status: string) => void) => () => void
   }
   dev: {
-    /** Start the bulk bootloader-flash loop (developer fixture workflow). */
-    bulkFlashStart: () => Promise<void>
+    /** Start the bulk bootloader-flash loop for one board type (developer fixture workflow). */
+    bulkFlashStart: (target: BulkFlashTarget) => Promise<void>
     /** Stop the loop, killing any in-flight nrfutil process. */
     bulkFlashStop: () => Promise<void>
     /** Subscribe to bulk-flash events. Returns an unsubscribe function. */
