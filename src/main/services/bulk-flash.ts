@@ -1,6 +1,11 @@
 import { EventEmitter } from 'events'
 import { promises as fs } from 'fs'
-import type { BulkFlashEvent, BulkFlashLogCode, BulkFlashPhase } from '@shared/types'
+import type {
+  BulkFlashEvent,
+  BulkFlashLogCode,
+  BulkFlashPhase,
+  BulkFlashTarget
+} from '@shared/types'
 import { BULK_FLASH } from '@shared/config'
 import {
   JLINK_RECOVER_ARGS,
@@ -86,9 +91,11 @@ export class BulkFlashSession extends EventEmitter {
   private phase: BulkFlashPhase = 'idle'
   private count = 0
   private bin = ''
+  /** Image being programmed this run; set by start(). */
+  private hexPath = ''
 
   constructor(
-    private readonly hexPath: string,
+    private readonly hexPaths: Record<BulkFlashTarget, string>,
     private readonly deps: BulkFlashDeps = defaultDeps
   ) {
     super()
@@ -99,9 +106,10 @@ export class BulkFlashSession extends EventEmitter {
     return super.on(event, listener)
   }
 
-  /** Starts the loop. No-op if already running. */
-  start(): void {
+  /** Starts the loop for one board type. No-op if already running. */
+  start(target: BulkFlashTarget): void {
     if (this.abort) return
+    this.hexPath = this.hexPaths[target]
     const abort = new AbortController()
     this.abort = abort
     this.count = 0

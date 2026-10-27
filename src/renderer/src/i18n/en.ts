@@ -365,9 +365,12 @@ export const en = {
   'dev.open': 'Developer tools',
   'dev.title': 'Developer Tools',
   'dev.subtitle': 'Internal production utilities — not needed for normal setup.',
-  'dev.bulkflash.title': 'Bulk Flash Mochis',
+  'dev.bulkflash.title': 'Bulk Flash',
   'dev.bulkflash.body':
-    'Flashes the bundled bootloader onto Mochi boards over the J-Link pin fixture. Press the pins onto a board, wait for the OK, lift it off, and repeat — the loop re-arms for each next board automatically.',
+    'Flashes the bundled bootloader and firmware onto Mochi trackers or Fox Dongle receivers over the J-Link pin fixture. Press the pins onto a board, wait for the OK, lift it off, and repeat — the loop re-arms for each next board automatically.',
+  'dev.target.label': 'Board',
+  'dev.target.mochi': 'Mochi tracker',
+  'dev.target.foxdongle': 'Fox Dongle',
   'dev.bulkflash.count': 'boards flashed',
   'dev.bulkflash.start': 'Start bulk flash',
   'dev.bulkflash.stop': 'Stop',
@@ -390,7 +393,8 @@ export const en = {
   'dev.msg.nonrfutil': 'nrfutil was not found (not bundled in this build, and not on PATH).',
   'dev.msg.nodeviceplugin':
     'Couldn’t install nrfutil’s device command — it needs internet access once.',
-  'dev.msg.nohex': 'The bundled bootloader hex is missing from this build.',
+  'dev.msg.nohex':
+    'The bundled bootloader hex for this board is missing from this build (run npm run fetch:dev-firmware).',
   'dev.msg.ok': 'OK ✅ board #{count} flashed in {seconds}s',
   'dev.msg.stopped': 'Stopped — {count} board(s) flashed this session.'
 }

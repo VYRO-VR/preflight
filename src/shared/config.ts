@@ -296,8 +296,24 @@ export const RECEIVER_CONSOLE = {
 export const BULK_FLASH = {
   /** Folder under resources/ (dev) or process.resourcesPath (packaged). */
   hexResourceDir: 'dev-firmware',
-  /** Combined bootloader + firmware image for the Mochi tracker (nRF52833). */
-  hexFileName: 'Mochi_Tracker_Combined.hex',
+  /**
+   * Boards the panel can program, each with its combined bootloader +
+   * firmware image. `assetPrefix` is the VYRO-VR/Firmware release asset
+   * (`<prefix><commit>.hex`) that scripts/fetch-dev-firmware.mjs downloads into
+   * `hexFileName` before packaging — keep the one-line field layout, that
+   * script reads it with a regex. Mochi is an nRF52833; the Fox Dongle an
+   * nRF52840 (nrfutil's J-Link program command is chip-agnostic).
+   */
+  targets: {
+    mochi: {
+      hexFileName: 'Mochi_Tracker_Combined.hex',
+      assetPrefix: 'VVR_Combined_Tracker_Mochi_'
+    },
+    'fox-dongle': {
+      hexFileName: 'FoxDongle_Receiver_Combined.hex',
+      assetPrefix: 'VVR_Combined_Receiver_Fox_Dongle_'
+    }
+  },
   /** Fast path: skip verify for speed on fresh chips. */
   programOptionsFast: 'verify=VERIFY_NONE,reset=RESET_SYSTEM',
   /** Careful path, used right after a recover (unlock + mass erase). */

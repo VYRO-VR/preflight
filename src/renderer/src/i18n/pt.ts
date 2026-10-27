@@ -317,9 +317,12 @@ export const pt: Record<string, string> = {
   'dev.title': 'Ferramentas de Desenvolvedor',
   'dev.subtitle':
     'Utilitários internos de produção — não são necessários para a configuração normal.',
-  'dev.bulkflash.title': 'Gravação em Massa de Mochis',
+  'dev.bulkflash.title': 'Gravação em Massa',
   'dev.bulkflash.body':
-    'Grava o bootloader incluído nas placas Mochi pela fixação de pinos com J-Link. Pressione os pinos na placa, aguarde o OK, levante e repita — o ciclo se rearma automaticamente para a próxima placa.',
+    'Grava o bootloader e o firmware incluídos nos rastreadores Mochi ou nos receptores Fox Dongle pela fixação de pinos com J-Link. Pressione os pinos na placa, aguarde o OK, levante e repita — o ciclo se rearma automaticamente para a próxima placa.',
+  'dev.target.label': 'Placa',
+  'dev.target.mochi': 'Rastreador Mochi',
+  'dev.target.foxdongle': 'Fox Dongle',
   'dev.bulkflash.count': 'placas gravadas',
   'dev.bulkflash.start': 'Iniciar gravação em massa',
   'dev.bulkflash.stop': 'Parar',

@@ -10,9 +10,9 @@ The installer/release CI workflows download the binary automatically (see the
 "Fetch nrfutil" step in `.github/workflows/installer.yml`, `release.yml`, and
 `release-on-merge.yml`) from Nordic's official distribution:
 
-- Windows: `https://developer.nordicsemi.com/.pc-tools/nrfutil/x64-windows/nrfutil.exe`
-- macOS: `https://developer.nordicsemi.com/.pc-tools/nrfutil/universal-osx/nrfutil`
-- Linux: `https://developer.nordicsemi.com/.pc-tools/nrfutil/x64-linux/nrfutil`
+- Windows: `https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/x86_64-pc-windows-msvc/nrfutil.exe`
+- macOS: `https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/universal-apple-darwin/nrfutil`
+- Linux: `https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/x86_64-unknown-linux-gnu/nrfutil`
 
 For a local packaging run, download the matching binary yourself into this
 folder first:

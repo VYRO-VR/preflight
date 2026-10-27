@@ -11,3 +11,6 @@ coverage/
 .vite/
 *.local
 *.tsbuildinfo
+
+# Fetched by scripts/fetch-dev-firmware.mjs (the Mochi hex is committed as a fallback)
+resources/dev-firmware/FoxDongle_Receiver_Combined.hex

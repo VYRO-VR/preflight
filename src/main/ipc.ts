@@ -24,7 +24,13 @@ import { BulkFlashSession } from './services/bulk-flash'
 import { getDocPage, openExternal } from './services/docs'
 import { exportDiagnostics } from './services/diagnostics'
 import { getSettings, setSettings } from './services/settings'
-import type { AppSettings, FlashRequest, ReceiverDfuRequest, SensSetRequest } from '@shared/types'
+import type {
+  AppSettings,
+  BulkFlashTarget,
+  FlashRequest,
+  ReceiverDfuRequest,
+  SensSetRequest
+} from '@shared/types'
 
 /**
  * Registers all IPC handlers. A single long-lived SlimeVrClient streams live
@@ -59,12 +65,16 @@ export function registerIpc(win: BrowserWindow): {
     if (!win.isDestroyed()) win.webContents.send('receiver:console-event', event)
   })
 
-  // The developer bulk-flash loop programs the bundled bootloader hex, shipped
-  // as an extraResource in packaged builds and read from resources/ in dev.
-  const bulkFlashHex = app.isPackaged
-    ? path.join(process.resourcesPath, BULK_FLASH.hexResourceDir, BULK_FLASH.hexFileName)
-    : path.join(app.getAppPath(), 'resources', BULK_FLASH.hexResourceDir, BULK_FLASH.hexFileName)
-  const bulkFlash = new BulkFlashSession(bulkFlashHex)
+  // The developer bulk-flash loop programs a bundled combined bootloader hex per
+  // board type, shipped as extraResources in packaged builds and read from
+  // resources/ in dev.
+  const hexDir = app.isPackaged
+    ? path.join(process.resourcesPath, BULK_FLASH.hexResourceDir)
+    : path.join(app.getAppPath(), 'resources', BULK_FLASH.hexResourceDir)
+  const bulkFlash = new BulkFlashSession({
+    mochi: path.join(hexDir, BULK_FLASH.targets.mochi.hexFileName),
+    'fox-dongle': path.join(hexDir, BULK_FLASH.targets['fox-dongle'].hexFileName)
+  })
   bulkFlash.on('event', (event) => {
     if (!win.isDestroyed()) win.webContents.send('dev:bulk-flash-event', event)
   })
@@ -123,7 +133,11 @@ export function registerIpc(win: BrowserWindow): {
 
   ipcMain.handle('app:get-version', () => app.getVersion())
 
-  ipcMain.handle('dev:bulk-flash-start', () => bulkFlash.start())
+  ipcMain.handle('dev:bulk-flash-start', (_e, target: BulkFlashTarget) => {
+    // The renderer is trusted, but the target picks which file gets flashed.
+    if (!(target in BULK_FLASH.targets)) return
+    bulkFlash.start(target)
+  })
   ipcMain.handle('dev:bulk-flash-stop', () => bulkFlash.stop())
 
   return { slime, receiver, console: receiverConsole, bulkFlash }
