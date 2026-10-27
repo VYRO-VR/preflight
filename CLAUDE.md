@@ -18,6 +18,7 @@ npm run typecheck    # tsc for BOTH node and web projects (see below)
 npm run format       # prettier --write on src
 npm run build        # typecheck + electron-vite build (no packaging)
 npm run build:win    # NSIS installer + portable .exe  → release/
+npm run fetch:dev-firmware  # pull the latest combined Mochi hex from the VYRO-VR/Firmware release into resources/dev-firmware/ (CI runs this before packaging; --strict fails instead of keeping the committed hex)
 ```
 
 CI (`.github/workflows/ci.yml`) runs `lint → typecheck → test → build` on Ubuntu, so all four must pass. Packaging must happen on each target OS (electron-builder can't cross-build a macOS `.dmg` from Linux).

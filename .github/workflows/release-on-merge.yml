@@ -86,6 +86,14 @@ jobs:
 
       - run: npm run build
 
+      # The combined Mochi bootloader + firmware hex flashed by the developer
+      # bulk-flash panel: pull the newest from the VYRO-VR/Firmware releases
+      # so it isn't frozen at whatever was committed.
+      - name: Fetch dev-panel firmware
+        run: node scripts/fetch-dev-firmware.mjs --strict
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Bundle Nordic's nrfutil launcher so the app can flash hex/DFU
       # receivers (e.g. HolyIOT) out of the box. The app installs the `device`
       # command plugin itself on first use; see resources/nrfutil/README.md.
@@ -93,9 +101,9 @@ jobs:
         shell: bash
         run: |
           case "${{ runner.os }}" in
-            Windows) url="https://developer.nordicsemi.com/.pc-tools/nrfutil/x64-windows/nrfutil.exe"; out="resources/nrfutil/nrfutil.exe" ;;
-            macOS)   url="https://developer.nordicsemi.com/.pc-tools/nrfutil/universal-osx/nrfutil"; out="resources/nrfutil/nrfutil" ;;
-            *)       url="https://developer.nordicsemi.com/.pc-tools/nrfutil/x64-linux/nrfutil"; out="resources/nrfutil/nrfutil" ;;
+            Windows) url="https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/x86_64-pc-windows-msvc/nrfutil.exe"; out="resources/nrfutil/nrfutil.exe" ;;
+            macOS)   url="https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/universal-apple-darwin/nrfutil"; out="resources/nrfutil/nrfutil" ;;
+            *)       url="https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/x86_64-unknown-linux-gnu/nrfutil"; out="resources/nrfutil/nrfutil" ;;
           esac
           curl -fsSL --retry 3 -o "$out" "$url"
           chmod +x "$out"
